@@ -1,0 +1,6 @@
+# Private keys must never be committed.
+*.key
+# Local build output and scratch logs.
+/trustcore
+/bin/
+/demo-out/

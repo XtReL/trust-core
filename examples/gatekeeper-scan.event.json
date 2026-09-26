@@ -1,0 +1,21 @@
+{
+  "subjects": [
+    {
+      "name": "git+https://github.com/XtReL/test-leak-repo",
+      "digest": { "gitCommit": "3f786850e387550fdab836ed7e6dc881de23001b" }
+    }
+  ],
+  "predicateType": "https://in-toto.io/attestation/test-result/v0.1",
+  "predicate": {
+    "result": "FAILED",
+    "configuration": [
+      {
+        "name": "gatekeeper-rules",
+        "digest": { "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" },
+        "annotations": { "engine": "gitleaks", "scanner": "devsecops-gatekeeper" }
+      }
+    ],
+    "url": "https://github.com/XtReL/test-leak-repo/actions/runs/1",
+    "failedTests": ["aws-access-token", "github-pat"]
+  }
+}
