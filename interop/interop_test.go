@@ -43,7 +43,7 @@ func TestReferenceNoteOpensWithOurs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parts := strings.Split(vkey, "+")
+	parts := strings.SplitN(vkey, "+", 3)
 	raw, _ := base64.StdEncoding.DecodeString(parts[2])
 	pub := ed25519.PublicKey(raw[1:])
 	if tc.VerifierKey("witness.example.com", pub) != vkey {
