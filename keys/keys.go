@@ -50,21 +50,17 @@ func WritePublic(path string, pub ed25519.PublicKey) error {
 	return os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}), 0o644)
 }
 
-func readPEM(path, want string) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+func decodePEM(data []byte, want string) ([]byte, error) {
 	block, _ := pem.Decode(data)
 	if block == nil || block.Type != want {
-		return nil, fmt.Errorf("keys: %s does not contain a %s PEM block", path, want)
+		return nil, fmt.Errorf("keys: input does not contain a %s PEM block", want)
 	}
 	return block.Bytes, nil
 }
 
-// LoadPublic reads an Ed25519 public key from a PKIX PEM file.
-func LoadPublic(path string) (ed25519.PublicKey, error) {
-	der, err := readPEM(path, "PUBLIC KEY")
+// ParsePublic decodes an Ed25519 public key from PKIX PEM bytes.
+func ParsePublic(pemBytes []byte) (ed25519.PublicKey, error) {
+	der, err := decodePEM(pemBytes, "PUBLIC KEY")
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +75,15 @@ func LoadPublic(path string) (ed25519.PublicKey, error) {
 	return pub, nil
 }
 
+// LoadPublic reads an Ed25519 public key from a PKIX PEM file.
+func LoadPublic(path string) (ed25519.PublicKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublic(data)
+}
+
 // Signer is an Ed25519 signer usable for DSSE envelopes and log checkpoints.
 type Signer struct {
 	priv ed25519.PrivateKey
@@ -90,9 +95,9 @@ func NewSigner(priv ed25519.PrivateKey) *Signer {
 	return &Signer{priv: priv, id: KeyID(priv.Public().(ed25519.PublicKey))}
 }
 
-// LoadSigner reads an Ed25519 private key from a PKCS#8 PEM file.
-func LoadSigner(path string) (*Signer, error) {
-	der, err := readPEM(path, "PRIVATE KEY")
+// ParseSigner decodes an Ed25519 private key from PKCS#8 PEM bytes.
+func ParseSigner(pemBytes []byte) (*Signer, error) {
+	der, err := decodePEM(pemBytes, "PRIVATE KEY")
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +110,15 @@ func LoadSigner(path string) (*Signer, error) {
 		return nil, errors.New("keys: private key is not Ed25519")
 	}
 	return NewSigner(priv), nil
+}
+
+// LoadSigner reads an Ed25519 private key from a PKCS#8 PEM file.
+func LoadSigner(path string) (*Signer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSigner(data)
 }
 
 // KeyID returns the signer's key ID.
