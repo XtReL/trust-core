@@ -2,6 +2,8 @@
 # Single source of truth for CI: runs exactly what .github/workflows/ci.yml
 # runs (jobs "test" and "interop"), with the same commands and flags, and
 # fails on the first error. Run this before every push.
+# go test -race requires cgo and a C compiler; on Windows run this in WSL
+# or a cloud session.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,7 +26,7 @@ echo "== job: interop =="
 # Run in a temporary copy of interop/ so "go mod tidy" cannot leave changes
 # in the working copy. The copy's go.mod "replace" is repointed at this
 # repo's absolute path, since the copy no longer sits next to it.
-ROOT="$(pwd)"
+ROOT="$(pwd -W 2>/dev/null || pwd)"
 INTEROP_TMP="$(mktemp -d)"
 trap 'rm -rf "$INTEROP_TMP"' EXIT
 cp -r interop "$INTEROP_TMP/interop"
