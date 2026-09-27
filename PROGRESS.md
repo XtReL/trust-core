@@ -44,7 +44,7 @@
 
 > **Перед этапом 3 переключиться на Extra.** Вход этапа 3: разбор ветки `test-enforcement` (`wip.patch`, коммит `71fd157`) — check runs.
 
-## Этап 3. Gatekeeper Action пишет аттестации — 🔄 решения приняты, реализация
+## Этап 3. Gatekeeper Action пишет аттестации — ✅ принят (27.09.2026)
 
 Решения: ADR 0001 (`devsecops-gatekeeper/docs/adr/0001-action-evidence.md`). Задание: `docs/tasks/stage3.md`.
 
@@ -53,15 +53,26 @@
 | ✅ | Решение A: журнал в ветке `gatekeeper-evidence`, origin `…/gatekeeper-evidence/v1`, оптимистичная запись с повтором | Extra |
 | ✅ | Решение B: Ed25519 в секрете environment `gatekeeper-evidence` (только `main`); OIDC-свидетель — этап 6 | Extra |
 | ✅ | Фаза 1: `keys.ParseSigner`/`ParsePublic` в trust-core (PR #1), релиз `v0.1.0` → `15fc79a` | Claude Code |
-| ⬜ | Фаза 2: движок gitleaks как библиотека, детерминированный `gatekeeper scan` | Claude Code |
-| ⬜ | Фаза 3: `record`, `evidence-init`, `evidence-push.sh`, workflow `gatekeeper.yml` | Claude Code |
-| 🔄 | Фаза 4: ключ, environment, секрет, ветка журнала (`c5205ec`), ruleset, публичный ключ (PR #31) — готово; тест безопасности — после фазы 3 | Termux |
-| ⬜ | Приёмка: запись в журнале, `trustcore verify`, воспроизводимость, отказ теста безопасности | вручную |
-| ✅ | PR #9 (`test-enforcement`) закрыт без слияния, с объяснением | вручную |
+| ✅ | Фаза 2: движок gitleaks v8.30.1 как библиотека, детерминированный `gatekeeper scan` (PR #33; ревью: SARIF без секретов, версия gitleaks обязательна) | Claude Code |
+| ✅ | Фаза 3: `record`, `evidence-init`, `evidence-push.sh`, workflow `gatekeeper.yml` (PR #34; ревью: идентичность git, падение scan при находках, проверка входа, самотест в изолированном git, gosec G306) | Claude Code |
+| ✅ | Фаза 4: ключ на устройстве владельца, environment, секрет, ветка журнала `c5205ec`, ruleset, публичный ключ (PR #31) | Termux |
+| ✅ | Обязательные проверки `main`: + `Scan`, `evidence-push.sh self-test` | вручную |
+| ✅ | Тест безопасности (PR #35): «Branch refs/pull/35/merge is not allowed to deploy to gatekeeper-evidence due to environment protection rules», шаги не запускались | вручную |
+| ✅ | PR #9 (`test-enforcement`) закрыт без слияния | вручную |
 
-**Сигнал:** работает на `test-leak-repo` и на чужом репозитории.
+**Приёмка (независимая проверка по публичному репозиторию):**
+- первая запись: коммит журнала `e38d6c6` от `gatekeeper-evidence[bot]`, субъект — merge `66d0f8c` (PR #34), запуск `36309919129/1`, результат `PASSED`;
+- `trustcore verify` с `.gatekeeper/evidence.pub` — OK; начальный чекпоинт (size 0) — префикс текущего журнала;
+- `rulesDigest` совпал с SHA-256 `config/gitleaks.toml` gitleaks v8.30.1, посчитанным по исходникам;
+- воспроизводимость: `result.json`, восстановленный из заверенных полей, даёт заверенный хэш `b12037b5…`; отдельный прогон gitleaks по коммиту — 0 находок.
+
+**Сигнал этапа частично достигнут:** журнал проверен по публичным данным стороной, не участвовавшей в записи. Остаётся проверка реальным внешним человеком.
+
+**Уроки процесса:** ревью каждого PR обязательно (SARIF с секретами, пропуск идентичности git и неупавший scan при находках не ловились CI); проверки перед push должны совпадать с CI (gosec пропускался) → `scripts/check.sh`.
 
 ## Этап 4. Dogfooding — Medium
+
+- ⬜ `scripts/check.sh`: те же проверки, что CI (gofmt, vet, test, gosec, самотест); в каждом задании Claude Code — «перед push запусти check.sh».
 
 - ⬜ Gatekeeper проверяет `trust-core` и `devsecops-gatekeeper`, журнал публикуется открыто.
 - ⬜ Прогон рядом с GitGuardian в CI, сравнение результатов → материал для статьи на Habr.
