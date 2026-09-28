@@ -79,7 +79,8 @@ func LoadManifest(path string) (Manifest, error) {
 
 // EpochReport is the outcome for one epoch. For a frozen epoch (one that
 // has a successor) Size and Root are those of the freeze checkpoint, which
-// is authoritative; entries after it are listed as unconfirmed.
+// is authoritative; the current checkpoint file and entries after the
+// freeze point are reported for information only (ADR 0002, section 5).
 type EpochReport struct {
 	Epoch  int    `json:"epoch"`
 	Origin string `json:"origin"`
@@ -92,8 +93,14 @@ type EpochReport struct {
 	// but not trusted. UnconfirmedEntries lists their indices.
 	Unconfirmed        uint64   `json:"unconfirmed"`
 	UnconfirmedEntries []uint64 `json:"unconfirmedEntries,omitempty"`
-	Problems           []string `json:"problems,omitempty"`
-	OK                 bool     `json:"ok"`
+	// CurrentSize is the size of the epoch's current checkpoint file, set
+	// for a frozen epoch when that file verifies. It does not affect the
+	// verdict.
+	CurrentSize *uint64 `json:"currentSize,omitempty"`
+	// Notes are informational findings that do not affect the verdict.
+	Notes    []string `json:"notes,omitempty"`
+	Problems []string `json:"problems,omitempty"`
+	OK       bool     `json:"ok"`
 }
 
 // ChainReport is the outcome of Chain.
@@ -136,16 +143,19 @@ func loadEpochKeys(e ManifestEpoch) (epochKeys, error) {
 
 // Chain verifies a chain of log epochs described by the verifier's
 // manifest (ADR 0002, sections 5 and 7):
-//   - every epoch passes Log under its own key from the manifest, with its
-//     lastKnownCheckpoint as Previous;
 //   - entry 0 of every epoch k >= 2 is a genesis signed by the key of
 //     epoch k that names epoch k-1, its key and a freeze checkpoint signed
-//     by the key of epoch k-1, of which epoch k-1 on disk is an extension;
-//   - a planned genesis is also signed by the key of epoch k-1, and epoch
-//     k-1 did not grow after the freeze point;
-//   - an unplanned genesis is accepted only if the manifest says so for
-//     exactly its newKeyID; growth of epoch k-1 after the freeze point is
-//     reported as unconfirmed.
+//     by the key of epoch k-1;
+//   - a planned genesis is also signed by the key of epoch k-1; an
+//     unplanned one is accepted only if the manifest says so for exactly
+//     its newKeyID;
+//   - the last epoch passes Log under its own key from the manifest, with
+//     its lastKnownCheckpoint as Previous;
+//   - a frozen epoch is verified against its freeze checkpoint only: its
+//     first N entries hash to the frozen root and are signed by trusted
+//     attesters, and lastKnownCheckpoint is a prefix of that state. Its
+//     current checkpoint file and entries after N are only reported
+//     (unconfirmed); after a planned rotation such entries are an error.
 //
 // An error means the manifest itself is unusable (bad structure, missing
 // key files); verification failures are reported in ChainReport.
@@ -173,70 +183,174 @@ func Chain(m Manifest) (ChainReport, error) {
 		}
 	}
 
+	// links[i] is the genesis of epoch i+1, linking it to epoch i.
+	links := make([]link, len(m.Epochs))
+	for i := 1; i < len(m.Epochs); i++ {
+		links[i] = checkGenesis(m.Base, m.Epochs[i-1], m.Epochs[i], ks[i-1], ks[i])
+	}
 	rep := ChainReport{Base: m.Base}
 	for i, e := range m.Epochs {
-		rep.Epochs = append(rep.Epochs, checkEpoch(m.Base, e, ks[i]))
-	}
-	for i := 1; i < len(m.Epochs); i++ {
-		checkLink(m.Base, m.Epochs[i-1], m.Epochs[i], ks[i-1], ks[i], &rep.Epochs[i-1], &rep.Epochs[i])
-	}
-	for i := range rep.Epochs {
-		er := &rep.Epochs[i]
+		var er EpochReport
+		if i+1 < len(m.Epochs) && links[i+1].freeze != nil {
+			er = checkFrozen(m.Base, e, ks[i], *links[i+1].freeze, links[i+1].rotation)
+		} else {
+			// The last epoch, or one whose successor has no usable
+			// freeze checkpoint (the successor fails in that case).
+			er = checkEpoch(m.Base, e, ks[i])
+		}
+		er.Rotation = links[i].rotation
+		er.Problems = append(er.Problems, links[i].problems...)
 		er.OK = len(er.Problems) == 0
 		for _, p := range er.Problems {
 			rep.Problems = append(rep.Problems, fmt.Sprintf("epoch %d: %s", er.Epoch, p))
 		}
+		rep.Epochs = append(rep.Epochs, er)
 	}
 	rep.OK = len(rep.Problems) == 0
 	return rep, nil
 }
 
-// checkEpoch runs the unchanged single-log verification on one epoch.
+// epochAttesters returns the keys accepted for entry signatures by Log or
+// checkFrozen. The genesis (entry 0 of epoch k >= 2) is signed by the log
+// key, which is not necessarily an attester: it is added here and
+// attesterProblems rejects it for every other entry.
+func epochAttesters(e ManifestEpoch, k epochKeys) []attest.Verifier {
+	logVerifier := keys.NewVerifier(k.log)
+	switch {
+	case len(k.attesters) == 0:
+		return []attest.Verifier{logVerifier}
+	case e.Epoch >= 2:
+		return append(append([]attest.Verifier{}, k.attesters...), logVerifier)
+	default:
+		return k.attesters
+	}
+}
+
+func attesterProblems(e ManifestEpoch, k epochKeys, entries []EntryResult) []string {
+	if e.Epoch < 2 || len(k.attesters) == 0 {
+		return nil
+	}
+	trusted := map[string]bool{}
+	for _, v := range k.attesters {
+		trusted[v.KeyID()] = true
+	}
+	var out []string
+	for _, r := range entries {
+		if r.Index == 0 || !r.OK {
+			continue
+		}
+		ok := false
+		for _, id := range r.KeyIDs {
+			ok = ok || trusted[id]
+		}
+		if !ok {
+			out = append(out, fmt.Sprintf("entry %d: not signed by a trusted attester", r.Index))
+		}
+	}
+	return out
+}
+
+// checkEpoch runs the unchanged single-log verification on a live epoch.
 func checkEpoch(base string, e ManifestEpoch, k epochKeys) EpochReport {
 	origin := event.EpochOrigin(base, e.Epoch)
 	er := EpochReport{Epoch: e.Epoch, Origin: origin}
-	attesters := k.attesters
-	logVerifier := keys.NewVerifier(k.log)
-	if e.Epoch >= 2 && len(k.attesters) > 0 {
-		// The genesis (entry 0) is signed by the log key, which is not
-		// necessarily an attester; it is checked below, and the log key
-		// alone is not accepted for any other entry.
-		attesters = append(append([]attest.Verifier{}, k.attesters...), logVerifier)
-	} else if len(attesters) == 0 {
-		attesters = []attest.Verifier{logVerifier}
-	}
-	lr, err := Log(Options{Dir: e.Log, Origin: origin, LogKey: k.log, Attesters: attesters, Previous: k.previous})
+	lr, err := Log(Options{Dir: e.Log, Origin: origin, LogKey: k.log, Attesters: epochAttesters(e, k), Previous: k.previous})
 	if err != nil {
 		er.Problems = append(er.Problems, err.Error())
 		return er
 	}
 	er.Size, er.Root = lr.Size, lr.Root
 	er.Problems = append(er.Problems, lr.Problems...)
-	if e.Epoch >= 2 && len(k.attesters) > 0 {
-		trusted := map[string]bool{}
-		for _, v := range k.attesters {
-			trusted[v.KeyID()] = true
+	er.Problems = append(er.Problems, attesterProblems(e, k, lr.Entries)...)
+	return er
+}
+
+// checkFrozen verifies an epoch that has a successor against the freeze
+// checkpoint from the successor's genesis. The epoch's current checkpoint
+// file is not trusted: after an unplanned rotation whoever holds the old
+// key controls it, so it is only reported.
+func checkFrozen(base string, e ManifestEpoch, k epochKeys, fc tlog.Checkpoint, rotation string) EpochReport {
+	origin := event.EpochOrigin(base, e.Epoch)
+	er := EpochReport{Epoch: e.Epoch, Origin: origin, Frozen: true,
+		Size: fc.Size, Root: base64.StdEncoding.EncodeToString(fc.Root[:])}
+	bad := func(format string, a ...any) { er.Problems = append(er.Problems, fmt.Sprintf(format, a...)) }
+	note := func(format string, a ...any) { er.Notes = append(er.Notes, fmt.Sprintf(format, a...)) }
+
+	// Informational: the current checkpoint file.
+	if msg, err := os.ReadFile(filelog.CheckpointPath(e.Log)); err != nil {
+		note("current checkpoint: %v", err)
+	} else if cur, err := tlog.OpenCheckpoint(msg, origin, k.log); err != nil {
+		note("current checkpoint does not verify (ignored for a frozen epoch): %v", err)
+	} else {
+		size := cur.Size
+		er.CurrentSize = &size
+		if cur.Size < fc.Size {
+			note("current checkpoint (size %d) is behind the freeze checkpoint (size %d) (ignored for a frozen epoch)", cur.Size, fc.Size)
 		}
-		for _, r := range lr.Entries {
-			if r.Index == 0 || !r.OK {
-				continue
-			}
-			ok := false
-			for _, id := range r.KeyIDs {
-				ok = ok || trusted[id]
-			}
-			if !ok {
-				er.Problems = append(er.Problems, fmt.Sprintf("entry %d: not signed by a trusted attester", r.Index))
-			}
+	}
+
+	// Entries after the freeze point: unconfirmed.
+	if files, err := filelog.CountEntryFiles(e.Log); err != nil {
+		bad("%v", err)
+	} else if files > fc.Size {
+		for i := fc.Size; i < files; i++ {
+			er.UnconfirmedEntries = append(er.UnconfirmedEntries, i)
+		}
+		er.Unconfirmed = files - fc.Size
+		if rotation == event.RotationPlanned {
+			bad("%d entries after the freeze point of a planned rotation (old key misuse)", er.Unconfirmed)
+		}
+	}
+
+	// Entries [0, N): the frozen root and every entry signature.
+	leaves, err := filelog.LeafHashes(e.Log, fc.Size)
+	if err != nil {
+		bad("shorter than its freeze checkpoint: %v", err)
+		return er
+	}
+	if tlog.RootFromLeaves(leaves) != fc.Root {
+		bad("history was rewritten before the freeze point: entries do not match the freeze checkpoint")
+	}
+	attesters := epochAttesters(e, k)
+	var entries []EntryResult
+	for i := uint64(0); i < fc.Size; i++ {
+		r := checkEntry(e.Log, i, attesters)
+		if !r.OK {
+			bad("entry %d: %s", i, r.Error)
+		}
+		entries = append(entries, r)
+	}
+	er.Problems = append(er.Problems, attesterProblems(e, k, entries)...)
+
+	// The verifier's own checkpoint must be a prefix of the frozen state.
+	if len(k.previous) > 0 {
+		prev, err := tlog.OpenCheckpoint(k.previous, origin, k.log)
+		switch {
+		case err != nil:
+			bad("lastKnownCheckpoint: %v", err)
+		case prev.Size > fc.Size && rotation == event.RotationUnplanned:
+			bad("lastKnownCheckpoint (size %d) is beyond the freeze point (size %d) of an unplanned rotation: the trusted checkpoint used for the rotation is older than what this verifier saw; a human decision is needed", prev.Size, fc.Size)
+		case prev.Size > fc.Size:
+			bad("lastKnownCheckpoint (size %d) is beyond the freeze point (size %d)", prev.Size, fc.Size)
+		case tlog.RootFromLeaves(leaves[:prev.Size]) != prev.Root:
+			bad("history was rewritten: first entries no longer match lastKnownCheckpoint")
 		}
 	}
 	return er
 }
 
-// checkLink checks the genesis of epoch cur against epoch prev and
-// applies the freeze point to prev's report.
-func checkLink(base string, prev, cur ManifestEpoch, pk, ck epochKeys, pr, cr *EpochReport) {
-	bad := func(format string, a ...any) { cr.Problems = append(cr.Problems, fmt.Sprintf(format, a...)) }
+// link is the outcome of checking the genesis of one epoch.
+type link struct {
+	rotation string
+	// freeze is the verified freeze checkpoint of the previous epoch, or
+	// nil if the genesis does not provide one.
+	freeze   *tlog.Checkpoint
+	problems []string
+}
+
+// checkGenesis checks entry 0 of epoch cur against epoch prev.
+func checkGenesis(base string, prev, cur ManifestEpoch, pk, ck epochKeys) (l link) {
+	bad := func(format string, a ...any) { l.problems = append(l.problems, fmt.Sprintf(format, a...)) }
 
 	data, err := os.ReadFile(filelog.EntryPath(cur.Log, 0))
 	if err != nil {
@@ -271,7 +385,7 @@ func checkLink(base string, prev, cur ManifestEpoch, pk, ck epochKeys, pr, cr *E
 		bad("genesis predicate: %v", err)
 		return
 	}
-	cr.Rotation = g.Rotation
+	l.rotation = g.Rotation
 
 	prevOrigin := event.EpochOrigin(base, prev.Epoch)
 	if g.Epoch != cur.Epoch {
@@ -306,7 +420,6 @@ func checkLink(base string, prev, cur ManifestEpoch, pk, ck epochKeys, pr, cr *E
 		}
 	}
 
-	// The freeze checkpoint is authoritative for the previous epoch.
 	fc, err := tlog.OpenCheckpoint([]byte(g.PredecessorCheckpoint), prevOrigin, pk.log)
 	if err != nil {
 		bad("genesis predecessorCheckpoint does not verify under the epoch %d key: %v", prev.Epoch, err)
@@ -316,37 +429,6 @@ func checkLink(base string, prev, cur ManifestEpoch, pk, ck epochKeys, pr, cr *E
 		bad("genesis predecessorSize/predecessorRoot do not match predecessorCheckpoint")
 		return
 	}
-	freezeProblem := func(format string, a ...any) {
-		pr.Problems = append(pr.Problems, fmt.Sprintf(format, a...))
-	}
-	pr.Frozen = true
-	current := pr.Size
-	pr.Size, pr.Root = fc.Size, base64.StdEncoding.EncodeToString(fc.Root[:])
-	leaves, err := filelog.LeafHashes(prev.Log, fc.Size)
-	if err != nil {
-		freezeProblem("shorter than its freeze checkpoint: %v", err)
-		return
-	}
-	if tlog.RootFromLeaves(leaves) != fc.Root {
-		freezeProblem("history was rewritten before the freeze point: entries do not match the freeze checkpoint")
-		return
-	}
-	if current < fc.Size {
-		// Entries below the freeze point must all have been checked by Log.
-		freezeProblem("current checkpoint (size %d) is behind the freeze checkpoint (size %d)", current, fc.Size)
-	}
-	files, err := filelog.CountEntryFiles(prev.Log)
-	if err != nil {
-		freezeProblem("%v", err)
-		return
-	}
-	for i := fc.Size; i < files; i++ {
-		pr.UnconfirmedEntries = append(pr.UnconfirmedEntries, i)
-	}
-	if files > fc.Size {
-		pr.Unconfirmed = files - fc.Size
-		if g.Rotation == event.RotationPlanned {
-			freezeProblem("%d entries after the freeze point of a planned rotation (old key misuse)", pr.Unconfirmed)
-		}
-	}
+	l.freeze = &fc
+	return
 }

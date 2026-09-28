@@ -14,6 +14,7 @@ import (
 	"github.com/XtReL/trust-core/event"
 	"github.com/XtReL/trust-core/keys"
 	"github.com/XtReL/trust-core/rotate"
+	"github.com/XtReL/trust-core/tlog"
 	"github.com/XtReL/trust-core/tlog/filelog"
 	"github.com/XtReL/trust-core/verify"
 )
@@ -520,4 +521,137 @@ func TestV010FixtureCompatibility(t *testing.T) {
 	if len(crep.Epochs) != 1 || crep.Epochs[0].Size != 3 || crep.Epochs[0].Root != rep.Root || crep.Epochs[0].Frozen {
 		t.Fatalf("chain: %+v", crep)
 	}
+}
+
+// rollBack replaces the current checkpoint of epoch k with a validly
+// signed one of a smaller size, as whoever holds the epoch key can.
+func (c *chainFixture) rollBack(k int, size uint64) {
+	c.t.Helper()
+	leaves, err := filelog.LeafHashes(c.dir(k), size)
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	msg, err := tlog.SignCheckpoint(tlog.Checkpoint{Origin: c.origin(k), Size: size, Root: tlog.RootFromLeaves(leaves)}, c.keys[k-1])
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	if err := os.WriteFile(filelog.CheckpointPath(c.dir(k)), msg, 0o644); err != nil {
+		c.t.Fatal(err)
+	}
+}
+
+func hasNote(e verify.EpochReport, want string) bool {
+	for _, n := range e.Notes {
+		if strings.Contains(n, want) {
+			return true
+		}
+	}
+	return false
+}
+
+// Review (a): after an unplanned rotation the old key holder rolls back
+// the checkpoint of the frozen epoch. The freeze checkpoint is
+// authoritative, so the chain still verifies; the rollback is reported.
+func TestChainFrozenCheckpointRollbackIgnored(t *testing.T) {
+	c := newChain(t, 3)
+	res := c.unplanned(c.checkpoint(1))
+	c.rollBack(1, 2)
+	rep := chain(t, c.manifest(func(e []map[string]any) { e[1]["acceptUnplanned"] = res.NewKeyID }))
+	expectOK(t, rep)
+	e1 := rep.Epochs[0]
+	if e1.Size != 3 || e1.CurrentSize == nil || *e1.CurrentSize != 2 || !hasNote(e1, "behind the freeze checkpoint") {
+		t.Fatalf("epoch 1: %+v", e1)
+	}
+}
+
+// Review (b): an entry below the freeze point signed by an untrusted key
+// fails the chain even when the current checkpoint does not cover it.
+func TestChainFrozenEntriesCheckedBelowFreezePoint(t *testing.T) {
+	c := newChain(t, 2)
+	c.record(1, 1, c.newKey()) // entry 2, foreign attester
+	res := c.unplanned(c.checkpoint(1))
+	c.rollBack(1, 2)
+	rep := chain(t, c.manifest(func(e []map[string]any) { e[1]["acceptUnplanned"] = res.NewKeyID }))
+	expectFail(t, rep, "epoch 1: entry 2:")
+}
+
+// Review (c): a broken signature on the current checkpoint of a frozen
+// epoch does not affect the verdict.
+func TestChainFrozenCheckpointBadSignatureIgnored(t *testing.T) {
+	for _, kind := range []string{event.RotationPlanned, event.RotationUnplanned} {
+		t.Run(kind, func(t *testing.T) {
+			c := newChain(t, 3)
+			var accept string
+			if kind == event.RotationPlanned {
+				c.planned()
+			} else {
+				accept = c.unplanned(c.checkpoint(1)).NewKeyID
+			}
+			msg := c.checkpoint(1)
+			msg[len(msg)-4] ^= 1 // inside the base64 signature
+			os.WriteFile(filelog.CheckpointPath(c.dir(1)), msg, 0o644)
+			rep := chain(t, c.manifest(func(e []map[string]any) {
+				if accept != "" {
+					e[1]["acceptUnplanned"] = accept
+				}
+			}))
+			expectOK(t, rep)
+			if e1 := rep.Epochs[0]; e1.CurrentSize != nil || !hasNote(e1, "does not verify") {
+				t.Fatalf("epoch 1: %+v", e1)
+			}
+		})
+	}
+}
+
+// Review (d): the verifier's lastKnownCheckpoint of a frozen epoch is a
+// prefix of the frozen state (OK) or beyond the freeze point (error).
+func TestChainFrozenLastKnownCheckpoint(t *testing.T) {
+	c := newChain(t, 2)
+	early := c.writeFile("cp-early", c.checkpoint(1))
+	c.record(1, 1)
+	trusted := c.checkpoint(1)
+	c.record(1, 1)
+	late := c.writeFile("cp-late", c.checkpoint(1))
+	res := c.unplanned(trusted) // frozen at 3, the verifier saw 4
+
+	accept := func(cp string) func([]map[string]any) {
+		return func(e []map[string]any) {
+			e[0]["lastKnownCheckpoint"] = cp
+			e[1]["acceptUnplanned"] = res.NewKeyID
+		}
+	}
+	rep := chain(t, c.manifest(accept(early)))
+	expectOK(t, rep)
+	if rep.Epochs[0].Unconfirmed != 1 {
+		t.Fatalf("epoch 1: %+v", rep.Epochs[0])
+	}
+	expectFail(t, chain(t, c.manifest(accept(late))), "beyond the freeze point (size 3) of an unplanned rotation")
+
+	// A kept checkpoint of a different history is refused too.
+	other := newChain(t, 2)
+	other.keys[0] = c.keys[0]
+	os.RemoveAll(other.dir(1))
+	filelog.Init(other.dir(1), base, c.keys[0])
+	other.record(1, 1, c.newKey())
+	forged := c.writeFile("cp-forged", other.checkpoint(1))
+	expectFail(t, chain(t, c.manifest(accept(forged))), "no longer match lastKnownCheckpoint")
+}
+
+// Review (d), planned: a kept checkpoint beyond the freeze point is an
+// error of its own, and a kept checkpoint not signed by the epoch key is
+// refused.
+func TestChainFrozenLastKnownCheckpointPlanned(t *testing.T) {
+	c := newChain(t, 3)
+	c.planned()
+	c.record(1, 1) // old key misuse after the freeze...
+	late := c.writeFile("cp-late", c.checkpoint(1))
+	rep := chain(t, c.manifest(func(e []map[string]any) { e[0]["lastKnownCheckpoint"] = late }))
+	expectFail(t, rep, "lastKnownCheckpoint (size 4) is beyond the freeze point (size 3)")
+	expectFail(t, rep, "after the freeze point of a planned rotation")
+
+	c = newChain(t, 3)
+	c.planned()
+	foreign := c.writeFile("cp-foreign", newChain(t, 1).checkpoint(1))
+	expectFail(t, chain(t, c.manifest(func(e []map[string]any) { e[0]["lastKnownCheckpoint"] = foreign })),
+		"lastKnownCheckpoint: ")
 }

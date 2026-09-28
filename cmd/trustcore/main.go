@@ -399,8 +399,14 @@ func cmdVerifyChain(args []string) error {
 				fmt.Print("  frozen")
 			}
 			fmt.Printf("  %s\n", status)
+			if e.CurrentSize != nil && *e.CurrentSize != e.Size {
+				fmt.Printf("  current checkpoint size %d (not authoritative for a frozen epoch)\n", *e.CurrentSize)
+			}
 			if e.Unconfirmed > 0 {
 				fmt.Printf("  warning: %d entry(ies) after the freeze point are NOT confirmed: %v\n", e.Unconfirmed, e.UnconfirmedEntries)
+			}
+			for _, n := range e.Notes {
+				fmt.Printf("  note: %s\n", n)
 			}
 		}
 	}
