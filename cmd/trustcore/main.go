@@ -14,6 +14,7 @@ import (
 	"github.com/XtReL/trust-core/attest"
 	"github.com/XtReL/trust-core/event"
 	"github.com/XtReL/trust-core/keys"
+	"github.com/XtReL/trust-core/rotate"
 	"github.com/XtReL/trust-core/tlog"
 	"github.com/XtReL/trust-core/tlog/filelog"
 	"github.com/XtReL/trust-core/verify"
@@ -28,6 +29,9 @@ Commands:
   verify        -log DIR -log-pub PUB -attester-pub PUB[,PUB] [-origin ORIGIN] [-previous CHECKPOINT]
   prove         -log DIR -index N
   verify-entry  -entry FILE -proof FILE -log-pub PUB [-attester-pub PUB] [-origin ORIGIN]
+  rotate        -from DIR -from-origin ORIGIN -from-pub OLD.pub [-from-key OLD.key]
+                [-trusted-checkpoint FILE] -new-key NEW.key -to DIR [-note TEXT]
+  verify-chain  -manifest FILE [-json]
 `
 
 func main() {
@@ -49,6 +53,10 @@ func main() {
 		err = cmdProve(os.Args[2:])
 	case "verify-entry":
 		err = cmdVerifyEntry(os.Args[2:])
+	case "rotate":
+		err = cmdRotate(os.Args[2:])
+	case "verify-chain":
+		err = cmdVerifyChain(os.Args[2:])
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -288,5 +296,120 @@ func cmdVerifyEntry(args []string) error {
 		fail("%v", err)
 	}
 	fmt.Printf("OK: entry %d is included in the log at size %d\n", p.Index, p.Size)
+	return nil
+}
+
+func cmdRotate(args []string) error {
+	fs := flag.NewFlagSet("rotate", flag.ExitOnError)
+	from := fs.String("from", "", "log directory of the epoch being rotated")
+	fromOrigin := fs.String("from-origin", "", "origin of the epoch being rotated")
+	fromPub := fs.String("from-pub", "", "public key of the epoch being rotated")
+	fromKey := fs.String("from-key", "", "private key of the epoch being rotated: planned rotation")
+	trusted := fs.String("trusted-checkpoint", "", "checkpoint kept outside the log: required without -from-key (unplanned rotation)")
+	newKey := fs.String("new-key", "", "private key of the new epoch")
+	to := fs.String("to", "", "log directory of the new epoch")
+	note := fs.String("note", "", "free text recorded in the genesis")
+	fs.Parse(args)
+	if err := need(fs, "from", "from-origin", "from-pub", "new-key", "to"); err != nil {
+		return err
+	}
+	oldPub, err := keys.LoadPublic(*fromPub)
+	if err != nil {
+		return err
+	}
+	newSigner, err := keys.LoadSigner(*newKey)
+	if err != nil {
+		return err
+	}
+	var res rotate.Result
+	if *fromKey != "" {
+		if *trusted != "" {
+			return fmt.Errorf("rotate: -trusted-checkpoint is for unplanned rotations; a planned rotation freezes the current checkpoint")
+		}
+		oldSigner, err := keys.LoadSigner(*fromKey)
+		if err != nil {
+			return err
+		}
+		if !oldSigner.Public().Equal(oldPub) {
+			return fmt.Errorf("rotate: -from-key does not match -from-pub")
+		}
+		res, err = rotate.Planned(*from, *fromOrigin, oldSigner, *to, newSigner, *note)
+		if err != nil {
+			return err
+		}
+	} else {
+		if *trusted == "" {
+			return fmt.Errorf("rotate: without -from-key (unplanned rotation) -trusted-checkpoint is required")
+		}
+		cp, err := os.ReadFile(*trusted)
+		if err != nil {
+			return err
+		}
+		res, err = rotate.Unplanned(*from, *fromOrigin, oldPub, cp, *to, newSigner, *note)
+		if err != nil {
+			return err
+		}
+	}
+	kind := "planned"
+	if *fromKey == "" {
+		kind = "unplanned"
+	}
+	fmt.Printf("rotation: %s\nepoch:    %d\norigin:   %s\nkey id:   %s\nvkey:     %s\nfrozen:   %s at size %d\n",
+		kind, res.Epoch, res.Origin, res.NewKeyID, res.VerifierKey, *fromOrigin, res.FrozenSize)
+	if res.AfterFreeze > 0 {
+		fmt.Printf("ignored:  %d old-epoch entry file(s) after the freeze point\n", res.AfterFreeze)
+	}
+	if kind == "unplanned" {
+		fmt.Println("verifiers must confirm this key id with you out of band and set acceptUnplanned")
+	}
+	return nil
+}
+
+func cmdVerifyChain(args []string) error {
+	fs := flag.NewFlagSet("verify-chain", flag.ExitOnError)
+	manifest := fs.String("manifest", "", "your manifest of trusted epochs and keys (JSON)")
+	asJSON := fs.Bool("json", false, "print the full report as JSON")
+	fs.Parse(args)
+	if err := need(fs, "manifest"); err != nil {
+		return err
+	}
+	m, err := verify.LoadManifest(*manifest)
+	if err != nil {
+		return err
+	}
+	rep, err := verify.Chain(m)
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(rep)
+	} else {
+		for _, e := range rep.Epochs {
+			status := "ok"
+			if !e.OK {
+				status = "FAILED"
+			}
+			fmt.Printf("epoch %d:  %s  size %d  root %s", e.Epoch, e.Origin, e.Size, e.Root)
+			if e.Rotation != "" {
+				fmt.Printf("  (%s rotation)", e.Rotation)
+			}
+			if e.Frozen {
+				fmt.Print("  frozen")
+			}
+			fmt.Printf("  %s\n", status)
+			if e.Unconfirmed > 0 {
+				fmt.Printf("  warning: %d entry(ies) after the freeze point are NOT confirmed: %v\n", e.Unconfirmed, e.UnconfirmedEntries)
+			}
+		}
+	}
+	if !rep.OK {
+		for _, p := range rep.Problems {
+			fmt.Fprintln(os.Stderr, " -", p)
+		}
+		fail("%d problem(s)", len(rep.Problems))
+	}
+	fmt.Println("OK: every epoch verified and linked by its genesis")
 	return nil
 }
