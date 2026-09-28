@@ -1,0 +1,6 @@
+{
+  "base": "github.com/XtReL/devsecops-gatekeeper/gatekeeper-evidence/v1",
+  "epochs": [
+    {"epoch": 1, "log": "log", "publicKey": "log.pub"}
+  ]
+}
