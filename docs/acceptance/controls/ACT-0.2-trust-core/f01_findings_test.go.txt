@@ -1,0 +1,158 @@
+// Контроли находок вне заявлений (раздел «Находки вне заявлений» акта).
+// Каждый тест утверждает НАБЛЮДАЕМОЕ поведение, которое акт считает
+// недостатком: после исправления кода соответствующий тест покраснеет —
+// это ожидаемо, ожидание тогда нужно перевернуть.
+//
+//	F01 пустой файл -previous / lastKnownCheckpoint молча отключает проверку отката;
+//	F02 без Origin verify.Log принимает заявленный в чекпоинте origin;
+//	F03 .lock, оставшийся после аварии, блокирует запись навсегда;
+//	F04 rotate выводит номер эпохи по суффиксу «/e<k>» исходного origin.
+package acceptance
+
+import (
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/XtReL/trust-core/rotate"
+	"github.com/XtReL/trust-core/tlog"
+	"github.com/XtReL/trust-core/tlog/filelog"
+	"github.com/XtReL/trust-core/verify"
+)
+
+func TestF01_EmptyPreviousDisablesRollbackCheck(t *testing.T) {
+	root := t.TempDir()
+	dir := root + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	l := newLog(t, dir, base, ls)
+	record(t, l, att, 2)
+	kept := readFile(t, filelog.CheckpointPath(dir))
+	record(t, l, att, 1)
+
+	// переписанный журнал (тот же ключ/origin, другие записи, размер 3)
+	rew := root + "/rewritten"
+	lr := newLog(t, rew, base, ls)
+	for i := 0; i < 3; i++ {
+		recordFrom(t, lr, att, 10+i)
+	}
+	run := func(prev []byte) verify.Report {
+		rep, err := verify.Log(verify.Options{Dir: rew, Origin: base, LogKey: ls.Public(), Attesters: verifiers(att), Previous: prev})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rep
+	}
+	// контроль способности: непустой kept ловит переписывание
+	if rep := run(kept); rep.OK {
+		t.Fatal("capability: non-empty previous must detect the rewrite")
+	}
+	// наблюдаемый дефект: пустой файл (len == 0) — переписывание не замечено
+	if rep := run([]byte{}); !rep.OK || rep.PreviousSize != nil {
+		t.Fatalf("observed behaviour changed: empty previous no longer disables the check (ok=%v)", rep.OK)
+	}
+
+	// то же через манифест: пустой lastKnownCheckpoint
+	c := newChainEnv(t, 2)
+	m := c.manifest("")
+	empty := filepath.Join(filepath.Dir(m), "empty-cp")
+	writeFile(t, empty, nil)
+	writeFile(t, m, []byte(`{"base":"`+base+`","epochs":[{"epoch":1,"log":"`+c.dir(1)+`","publicKey":"e1.pub","attesterKeys":["att.pub"],"lastKnownCheckpoint":"empty-cp"}]}`))
+	mustOK(t, "empty lastKnownCheckpoint file accepted silently", chainOf(t, m))
+}
+
+func TestF02_OriginOptionalAcceptsClaimedOrigin(t *testing.T) {
+	dir := t.TempDir() + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	record(t, newLog(t, dir, "attacker.invalid/other-log", ls), att, 1)
+	rep, err := verify.Log(verify.Options{Dir: dir, LogKey: ls.Public(), Attesters: verifiers(att)})
+	if err != nil || !rep.OK || rep.Origin != "attacker.invalid/other-log" {
+		t.Fatalf("observed behaviour changed: err=%v ok=%v origin=%q", err, rep.OK, rep.Origin)
+	}
+	// контроль способности: с Origin то же самое отвергается
+	if _, err := verify.Log(verify.Options{Dir: dir, Origin: base, LogKey: ls.Public(), Attesters: verifiers(att)}); err == nil {
+		t.Fatal("capability: expected origin must reject a log with another origin")
+	}
+}
+
+func TestF03_StaleLockBlocksAppendForever(t *testing.T) {
+	dir := t.TempDir() + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	l := newLog(t, dir, base, ls)
+	record(t, l, att, 1) // контроль способности: запись без .lock работает
+	if err := os.WriteFile(filepath.Join(dir, ".lock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Append([]byte("x")); err == nil {
+		t.Fatal("observed behaviour changed: a leftover .lock no longer blocks Append")
+	}
+	if err := os.Remove(filepath.Join(dir, ".lock")); err != nil {
+		t.Fatal(err)
+	}
+	record(t, l, att, 1) // после ручного удаления запись снова работает
+}
+
+func TestF04_RotateDerivesEpochFromOriginSuffix(t *testing.T) {
+	dir := t.TempDir() + "/old"
+	ls, att, nk := newSigner(t), newSigner(t), newSigner(t)
+	// эпоха 1 с origin, который сам оканчивается на «/e7» (допустимое имя)
+	origin := "acceptance.invalid/team/e7"
+	record(t, newLog(t, dir, origin, ls), att, 1)
+	res, err := rotate.Planned(dir, origin, ls, t.TempDir()+"/new", nk, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ожидание по ADR 0002 п.1: epoch 2 = "<origin эпохи 1>/e2"
+	// наблюдается: epoch 8 с base "acceptance.invalid/team"
+	if res.Epoch != 8 || res.Origin != "acceptance.invalid/team/e8" {
+		t.Fatalf("observed behaviour changed: epoch=%d origin=%s", res.Epoch, res.Origin)
+	}
+}
+
+func TestF09_HugeSignedCheckpointSizeCrashesVerifier(t *testing.T) {
+	root := t.TempDir()
+	dir := root + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	newLog(t, dir, base, ls)
+	cp := filelog.CheckpointPath(dir)
+
+	signWithSize := func(size uint64) {
+		signed, err := tlog.SignCheckpoint(tlog.Checkpoint{Origin: base, Size: size, Root: tlog.EmptyRoot()}, ls)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, cp, signed)
+	}
+	run := func() (rep verify.Report, panicked any) {
+		defer func() { panicked = recover() }()
+		rep, _ = verify.Log(verify.Options{Dir: dir, Origin: base, LogKey: ls.Public(), Attesters: verifiers(att)})
+		return
+	}
+
+	// контроль способности: обычный, но недостижимый размер даёт отчёт с проблемой, без паники
+	signWithSize(5)
+	if rep, p := run(); p != nil || rep.OK || len(rep.Problems) == 0 {
+		t.Fatalf("capability: size 5 without entries must give a failed report, got panic=%v ok=%v", p, rep.OK)
+	}
+
+	// наблюдаемый дефект: размер 2^60 из подписанного чекпоинта — паника в make
+	signWithSize(1 << 60)
+	if _, p := run(); p == nil {
+		t.Fatal("observed behaviour changed: a huge signed size no longer panics")
+	}
+
+	// CLI: тот же журнал, код выхода
+	bin := filepath.Join(root, "trustcore")
+	if out, err := exec.Command("go", "build", "-o", bin, "../cmd/trustcore").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	writePub(t, filepath.Join(root, "log.pub"), ls)
+	writePub(t, filepath.Join(root, "att.pub"), att)
+	cmd := exec.Command(bin, "verify", "-log", dir, "-origin", base, "-log-pub", filepath.Join(root, "log.pub"), "-attester-pub", filepath.Join(root, "att.pub"))
+	err := cmd.Run()
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) || ee.ExitCode() != 2 {
+		t.Fatalf("observed behaviour changed: expected CLI exit code 2 (Go panic), got %v", err)
+	}
+}

@@ -1,0 +1,50 @@
+// Контроль З1. README.md:70 — «Изменение даже одного пробела обнаруживается».
+// Подкладываем: пробел в конец / в начало записи, изменённый байт, для
+// первой и последней записи. Ожидание: verify.Log сообщает о расхождении
+// корня. Исходный журнал в начале и после каждого отката должен быть OK —
+// иначе контроль не способен отличить норму от подмены.
+package acceptance
+
+import (
+	"testing"
+
+	"github.com/XtReL/trust-core/tlog/filelog"
+)
+
+func TestC01_TamperedEntryIsDetected(t *testing.T) {
+	dir := t.TempDir() + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	record(t, newLog(t, dir, base, ls), att, 3)
+
+	if rep := verifyLog(t, dir, base, ls, att); !rep.OK {
+		t.Fatalf("baseline must be OK: %v", rep.Problems)
+	}
+
+	mutations := map[string]func([]byte) []byte{
+		"trailing space": func(b []byte) []byte { return append(append([]byte{}, b...), ' ') },
+		"leading space":  func(b []byte) []byte { return append([]byte{' '}, b...) },
+		"one flipped byte": func(b []byte) []byte {
+			c := append([]byte{}, b...)
+			c[len(c)/2] ^= 0x01
+			return c
+		},
+	}
+	for _, idx := range []uint64{0, 2} {
+		path := filelog.EntryPath(dir, idx)
+		orig := readFile(t, path)
+		for name, mut := range mutations {
+			writeFile(t, path, mut(orig))
+			rep := verifyLog(t, dir, base, ls, att)
+			if rep.OK {
+				t.Fatalf("entry %d, %s: tampering NOT detected", idx, name)
+			}
+			if !hasSub(rep.Problems, "do not match the signed checkpoint root") {
+				t.Fatalf("entry %d, %s: rejected, but without the root-mismatch problem: %v", idx, name, rep.Problems)
+			}
+			writeFile(t, path, orig)
+			if rep := verifyLog(t, dir, base, ls, att); !rep.OK {
+				t.Fatalf("entry %d, %s: restored log must be OK again: %v", idx, name, rep.Problems)
+			}
+		}
+	}
+}

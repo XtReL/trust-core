@@ -1,0 +1,67 @@
+// Контроль З2. README.md:69 — «Чекпоинт подписан ключом оператора журнала
+// и относится к ожидаемому журналу (-origin)».
+// Подкладываем: чужой ключ журнала; чужой origin; чекпоинт с подлинной
+// подписью оператора, но под другим origin; правка строки размера при
+// сохранённой подписи. Ожидание: во всех случаях verify.Log возвращает
+// ошибку. Исходный случай (верный ключ и origin) должен проходить.
+package acceptance
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"errors"
+	"testing"
+
+	"github.com/XtReL/trust-core/tlog"
+	"github.com/XtReL/trust-core/tlog/filelog"
+	"github.com/XtReL/trust-core/verify"
+)
+
+func TestC02_CheckpointKeyAndOrigin(t *testing.T) {
+	dir := t.TempDir() + "/log"
+	ls, att, other := newSigner(t), newSigner(t), newSigner(t)
+	record(t, newLog(t, dir, base, ls), att, 2)
+
+	opts := func(origin string, key ed25519.PublicKey) verify.Options {
+		return verify.Options{Dir: dir, Origin: origin, LogKey: key, Attesters: verifiers(att)}
+	}
+	good := ls.Public()
+	if rep, err := verify.Log(opts(base, good)); err != nil || !rep.OK {
+		t.Fatalf("baseline must be OK: err=%v problems=%v", err, rep.Problems)
+	}
+
+	// 1. другой ключ журнала
+	_, err := verify.Log(opts(base, other.Public()))
+	if err == nil || !errors.Is(err, tlog.ErrNoValidSignature) {
+		t.Fatalf("wrong log key accepted or wrong error: %v", err)
+	}
+
+	// 2. другой ожидаемый origin
+	if _, err := verify.Log(opts("other.invalid/log", good)); err == nil {
+		t.Fatal("wrong expected origin accepted")
+	}
+
+	// 3. чекпоинт подписан оператором, но заявляет другой origin
+	cpPath := filelog.CheckpointPath(dir)
+	orig := readFile(t, cpPath)
+	leaves, _ := filelog.LeafHashes(dir, 2)
+	writeFile(t, cpPath, signCheckpoint(t, "other.invalid/log", leaves, ls))
+	if _, err := verify.Log(opts(base, good)); err == nil {
+		t.Fatal("operator-signed checkpoint of another origin accepted for the expected origin")
+	}
+
+	// 4. размер правлен, подпись сохранена
+	edited := bytes.Replace(orig, []byte("\n2\n"), []byte("\n3\n"), 1)
+	if sameBytes(edited, orig) {
+		t.Fatal("control bug: size line not found")
+	}
+	writeFile(t, cpPath, edited)
+	if _, err := verify.Log(opts(base, good)); err == nil {
+		t.Fatal("checkpoint with edited size and old signature accepted")
+	}
+
+	writeFile(t, cpPath, orig)
+	if rep, err := verify.Log(opts(base, good)); err != nil || !rep.OK {
+		t.Fatalf("restored log must be OK: err=%v problems=%v", err, rep.Problems)
+	}
+}

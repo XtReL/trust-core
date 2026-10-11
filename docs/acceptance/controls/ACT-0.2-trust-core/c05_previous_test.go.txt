@@ -1,0 +1,75 @@
+// Контроль З5. README.md:72 — «С флагом -previous: сохранённый ранее
+// чекпоинт остаётся префиксом журнала, то есть история не переписана».
+// Подкладываем: (a) честный рост журнала; (b) оператор пишет новый журнал
+// с теми же ключом и origin, но другими записями, и честно подписывает его;
+// (c) урезанный журнал; (d) -previous, подписанный чужим ключом.
+// Ожидание: (a) OK и PreviousSize == размеру сохранённого чекпоинта;
+// (b), (c), (d) — OK == false с конкретной причиной.
+// Заодно фиксируется то, что README.md:121 называет ограничением: тот же
+// переписанный журнал БЕЗ Previous проходит проверку (подтверждение
+// заявленного ограничения, не недостатка контроля).
+package acceptance
+
+import (
+	"testing"
+
+	"github.com/XtReL/trust-core/tlog/filelog"
+	"github.com/XtReL/trust-core/verify"
+)
+
+func TestC05_PreviousCheckpointDetectsRewrite(t *testing.T) {
+	root := t.TempDir()
+	dir := root + "/log"
+	ls, att := newSigner(t), newSigner(t)
+	l := newLog(t, dir, base, ls)
+	record(t, l, att, 2)
+	kept := readFile(t, filelog.CheckpointPath(dir)) // клиент хранит чекпоинт размера 2
+	record(t, l, att, 1)
+
+	run := func(d string, prev []byte) verify.Report {
+		rep, err := verify.Log(verify.Options{Dir: d, Origin: base, LogKey: ls.Public(), Attesters: verifiers(att), Previous: prev})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rep
+	}
+
+	// (a) честный рост
+	rep := run(dir, kept)
+	if !rep.OK || rep.PreviousSize == nil || *rep.PreviousSize != 2 {
+		t.Fatalf("(a) honest growth must be OK with PreviousSize=2: ok=%v prev=%v problems=%v", rep.OK, rep.PreviousSize, rep.Problems)
+	}
+
+	// (b) переписанная история: тот же ключ и origin, другие записи, размер 3
+	rew := root + "/rewritten"
+	lr := newLog(t, rew, base, ls)
+	for i := 0; i < 3; i++ {
+		// другие события (индексы 10+), та же подпись аттестатора
+		recordFrom(t, lr, att, 10+i)
+	}
+	if rep := run(rew, nil); !rep.OK {
+		t.Fatalf("(b) without Previous the rewritten log must pass (README.md:121 limitation): %v", rep.Problems)
+	}
+	rep = run(rew, kept)
+	if rep.OK || !hasSub(rep.Problems, "history was rewritten") {
+		t.Fatalf("(b) rewrite NOT detected with Previous: ok=%v problems=%v", rep.OK, rep.Problems)
+	}
+
+	// (c) урезанный журнал (размер 1 < 2), подписан честно
+	short := root + "/short"
+	recordFrom(t, newLog(t, short, base, ls), att, 0)
+	rep = run(short, kept)
+	if rep.OK || !hasSub(rep.Problems, "smaller than the previous checkpoint") {
+		t.Fatalf("(c) truncation NOT detected: ok=%v problems=%v", rep.OK, rep.Problems)
+	}
+
+	// (d) -previous подписан не тем ключом
+	other := newSigner(t)
+	otherDir := root + "/other"
+	recordFrom(t, newLog(t, otherDir, base, other), att, 0)
+	foreign := readFile(t, filelog.CheckpointPath(otherDir))
+	rep = run(dir, foreign)
+	if rep.OK || !hasSub(rep.Problems, "previous checkpoint") {
+		t.Fatalf("(d) foreign-signed Previous accepted: ok=%v problems=%v", rep.OK, rep.Problems)
+	}
+}

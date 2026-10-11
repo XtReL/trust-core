@@ -1,0 +1,256 @@
+// Контроль З13. README.md:128 — «DSSE v1 · in-toto Statement v1 · in-toto
+// test-result v0.1 · RFC 6962 / RFC 9162 (хэширование и доказательства
+// включения) · C2SP signed-note и tlog-checkpoint · Ed25519».
+// Проверка против внешних эталонов, а не против кода репозитория:
+//
+//	a) DSSE PAE — пример из спецификации DSSE (29 / 11 байт);
+//	b) подписи DSSE и подпись чекпоинта проверяет OpenSSL (не код
+//	   репозитория); подложенная порча сообщения OpenSSL отвергает;
+//	c) ключ-эталон signed-note «PeterNeumann» (пример из документации
+//	   golang.org/x/mod/sumdb/note) даёт тот же vkey, включая 4-байтный
+//	   хэш c74f20a3;
+//	d) корни RFC 6962 для деревьев из 1…8 листьев (тестовые векторы
+//	   Certificate Transparency) и вторая, независимая реализация MTH/PATH
+//	   по тексту RFC 6962 §2.1 для размеров 1…70;
+//	e) строки типов in-toto.
+//
+// ДОПУЩЕНИЕ: константы в (c) и (d) записаны по памяти автора акта, у них нет
+// ссылки на файл-источник в репозитории; их достоверность подтверждается
+// только совпадением с вычисленным значением (совпадение ключа и хэша,
+// а также 8 корней, по случайности невозможно); при расхождении вектор
+// считается непроверенным, а не опровергающим.
+package acceptance
+
+import (
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/XtReL/trust-core/attest"
+	"github.com/XtReL/trust-core/event"
+	"github.com/XtReL/trust-core/keys"
+	"github.com/XtReL/trust-core/tlog"
+)
+
+func openssl(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	out, err := exec.Command("openssl", args...).CombinedOutput()
+	return string(out), err
+}
+
+func TestC13a_DSSEPreAuthEncodingSpecExample(t *testing.T) {
+	got := string(attest.PAE("http://example.com/HelloWorld", []byte("hello world")))
+	want := "DSSEv1 29 http://example.com/HelloWorld 11 hello world"
+	if got != want {
+		t.Fatalf("PAE = %q, want %q", got, want)
+	}
+	if string(attest.PAE("a", []byte("b"))) == string(attest.PAE("ab", nil)) {
+		t.Fatal("PAE does not bind the payload type")
+	}
+}
+
+func TestC13b_OpenSSLVerifiesOurSignatures(t *testing.T) {
+	if _, err := exec.LookPath("openssl"); err != nil {
+		t.Fatal("openssl not found: control cannot run")
+	}
+	dir := t.TempDir()
+	s := newSigner(t)
+	pubPath := filepath.Join(dir, "pub.pem")
+	if err := keys.WritePublic(pubPath, s.Public()); err != nil {
+		t.Fatal(err)
+	}
+	// OpenSSL читает наш PEM (README.md:14) и разбирает как Ed25519
+	if out, err := openssl(t, "pkey", "-pubin", "-in", pubPath, "-noout", "-text"); err != nil || !strings.Contains(out, "ED25519") {
+		t.Fatalf("openssl cannot read our public key as ED25519: %v %s", err, out)
+	}
+
+	verify := func(msg, sig []byte) error {
+		mp, sp := filepath.Join(dir, "msg"), filepath.Join(dir, "sig")
+		_ = os.WriteFile(mp, msg, 0o600)
+		_ = os.WriteFile(sp, sig, 0o600)
+		_, err := openssl(t, "pkeyutl", "-verify", "-pubin", "-inkey", pubPath, "-rawin", "-in", mp, "-sigfile", sp)
+		return err
+	}
+
+	// DSSE: подпись над PAE
+	st, err := attest.StatementFromEvent(testEvent(t, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := attest.SignStatement(st, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := base64.StdEncoding.DecodeString(env.Payload)
+	sig, _ := base64.StdEncoding.DecodeString(env.Signatures[0].Sig)
+	pae := attest.PAE(env.PayloadType, payload)
+	if err := verify(pae, sig); err != nil {
+		t.Fatalf("OpenSSL rejected our DSSE signature: %v", err)
+	}
+	if err := verify(append(append([]byte{}, pae...), ' '), sig); err == nil {
+		t.Fatal("(control capability) OpenSSL accepted a corrupted message")
+	}
+
+	// чекпоинт signed-note: подпись над текстом заметки
+	note, err := tlog.SignCheckpoint(tlog.Checkpoint{Origin: base, Size: 5, Root: tlog.EmptyRoot()}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := strings.Index(string(note), "\n\n— ")
+	text, line := note[:i+1], strings.TrimSpace(string(note[i+2:]))
+	f := strings.SplitN(strings.TrimPrefix(line, "— "), " ", 2)
+	if len(f) != 2 || f[0] != base {
+		t.Fatalf("unexpected signature line %q", line)
+	}
+	blob, _ := base64.StdEncoding.DecodeString(f[1])
+	if len(blob) != 4+64 {
+		t.Fatalf("signature blob must be 4-byte key hash + 64-byte Ed25519 signature, got %d bytes", len(blob))
+	}
+	if err := verify(text, blob[4:]); err != nil {
+		t.Fatalf("OpenSSL rejected our checkpoint-note signature: %v", err)
+	}
+	if err := verify(append([]byte("x"), text...), blob[4:]); err == nil {
+		t.Fatal("(control capability) OpenSSL accepted a corrupted note")
+	}
+}
+
+func TestC13c_SignedNoteReferenceKey(t *testing.T) {
+	// vkey примера из документации golang.org/x/mod/sumdb/note. Берётся только
+	// публичная часть: из неё и имени заново вычисляется vkey (в том числе
+	// 4-байтный хэш ключа c74f20a3), результат должен совпасть с эталоном.
+	const vkey = "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
+	parts := strings.SplitN(vkey, "+", 3)
+	raw, err := base64.StdEncoding.DecodeString(parts[2])
+	if err != nil || len(raw) != 33 || raw[0] != 1 {
+		t.Fatalf("control constant is malformed: %v len=%d", err, len(raw))
+	}
+	if got := tlog.VerifierKey(parts[0], ed25519.PublicKey(raw[1:])); got != vkey {
+		t.Fatalf("vkey = %s\nwant   %s\n(если расхождение — вектор по памяти недостоверен, см. ДОПУЩЕНИЕ в шапке)", got, vkey)
+	}
+}
+
+// --- RFC 6962 ---
+
+func leafOf(b []byte) tlog.Hash { return tlog.LeafHash(b) }
+
+func TestC13d_CTVectorsRoots(t *testing.T) {
+	data := []string{"", "00", "10", "2021", "3031", "40414243", "5051525354555657", "606162636465666768696a6b6c6d6e6f"}
+	want := []string{
+		"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+		"fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125",
+		"aeb6bcfe274b70a14fb067a5e5578264db0fa9b51af5e0ba159158f329e06e77",
+		"d37ee418976dd95753c1c73862b9398fa2a2cf9b4ff0fdfe8b30cd95209614b7",
+		"4e3bbb1f7b478dcfe71fb631631519a3bca12c9aefca1612bfce4c13a86264d4",
+		"76e67dadbcdf1e10e1b74ddc608abd2f98dfb16fbce75277b5232a127f2087ef",
+		"ddb89be403809e325750d3d263cd78929c2942b7942a34b77e122c9594a74c8c",
+		"5dc9da79a70659a9ad559cb701ded9a2ab9d823aad2f4960cfe370eff4604328",
+	}
+	var leaves []tlog.Hash
+	for _, d := range data {
+		b, _ := hex.DecodeString(d)
+		leaves = append(leaves, leafOf(b))
+	}
+	for n := 1; n <= 8; n++ {
+		r := tlog.RootFromLeaves(leaves[:n])
+		if got := hex.EncodeToString(r[:]); got != want[n-1] {
+			t.Fatalf("root of %d leaves = %s, want %s (по памяти; см. ДОПУЩЕНИЕ)", n, got, want[n-1])
+		}
+	}
+}
+
+// Независимая реализация по RFC 6962 §2.1: MTH и PATH, рекурсивно, от
+// байтовых данных (не от кода репозитория).
+func hashLeaf(d []byte) [32]byte { return sha256.Sum256(append([]byte{0}, d...)) }
+func hashNode(l, r [32]byte) [32]byte {
+	return sha256.Sum256(append(append([]byte{1}, l[:]...), r[:]...))
+}
+func lpow2(n int) int { // наибольшая степень двойки, строго меньшая n
+	k := 1
+	for k*2 < n {
+		k *= 2
+	}
+	return k
+}
+func mth(d [][]byte) [32]byte {
+	if len(d) == 0 {
+		return sha256.Sum256(nil)
+	}
+	if len(d) == 1 {
+		return hashLeaf(d[0])
+	}
+	k := lpow2(len(d))
+	return hashNode(mth(d[:k]), mth(d[k:]))
+}
+func pathOf(m int, d [][]byte) [][32]byte {
+	if len(d) <= 1 {
+		return nil
+	}
+	k := lpow2(len(d))
+	if m < k {
+		return append(pathOf(m, d[:k]), mth(d[k:]))
+	}
+	return append(pathOf(m-k, d[k:]), mth(d[:k]))
+}
+
+func TestC13d_IndependentRFC6962(t *testing.T) {
+	for n := 1; n <= 70; n++ {
+		var data [][]byte
+		var leaves []tlog.Hash
+		for i := 0; i < n; i++ {
+			b := []byte{byte(i), byte(n), 7}
+			data = append(data, b)
+			leaves = append(leaves, tlog.LeafHash(b))
+		}
+		root := tlog.RootFromLeaves(leaves)
+		if root != tlog.Hash(mth(data)) {
+			t.Fatalf("n=%d: root differs from the independent MTH", n)
+		}
+		for m := 0; m < n; m++ {
+			ours, err := tlog.InclusionProof(leaves, uint64(m))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ref := pathOf(m, data)
+			if len(ours) != len(ref) {
+				t.Fatalf("n=%d m=%d: proof length %d != %d", n, m, len(ours), len(ref))
+			}
+			for j := range ref {
+				if ours[j] != tlog.Hash(ref[j]) {
+					t.Fatalf("n=%d m=%d: proof element %d differs from the independent PATH", n, m, j)
+				}
+			}
+			if err := tlog.VerifyInclusion(leaves[m], uint64(m), uint64(n), ours, root); err != nil {
+				t.Fatalf("n=%d m=%d: own proof does not verify: %v", n, m, err)
+			}
+		}
+	}
+}
+
+func TestC13e_TypeStrings(t *testing.T) {
+	for got, want := range map[string]string{
+		attest.StatementType:      "https://in-toto.io/Statement/v1",
+		attest.PayloadType:        "application/vnd.in-toto+json",
+		event.PredicateTestResult: "https://in-toto.io/attestation/test-result/v0.1",
+		event.ResultPassed:        "PASSED",
+		event.ResultWarned:        "WARNED",
+		event.ResultFailed:        "FAILED",
+	} {
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	}
+	st, _ := attest.StatementFromEvent(testEvent(t, 1))
+	b, _ := json.Marshal(st)
+	for _, k := range []string{`"_type"`, `"subject"`, `"predicateType"`, `"predicate"`} {
+		if !strings.Contains(string(b), k) {
+			t.Fatalf("statement JSON lacks %s: %s", k, b)
+		}
+	}
+}

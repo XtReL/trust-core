@@ -1,0 +1,50 @@
+// Контроль З4. README.md:102 — «Манифест хранит проверяющий. Публичные
+// ключи берутся только из него». (ADR 0002, п. 7: «никогда из проверяемого
+// репозитория».)
+// Подкладываем: проверяемый репозиторий с журналом, подписанным ключом
+// злоумышленника, и файлами его публичного ключа в трёх местах репозитория
+// (ev-e1/log.pub, .gatekeeper/keys/e1.pub, keys/e1.pub). Манифест
+// проверяющего указывает на ЕГО ключ вне репозитория.
+// Ожидание: цепочка не OK (подпись чекпоинта недействительна).
+// Контроль способности: тот же манифест, но publicKey → файл ключа
+// злоумышленника внутри репозитория, — OK; значит ключ берётся именно по
+// пути из манифеста, а не «случайно не нашёлся».
+package acceptance
+
+import (
+	"encoding/json"
+	"path/filepath"
+	"testing"
+)
+
+func TestC04_KeysComeOnlyFromTheVerifiersManifest(t *testing.T) {
+	root := t.TempDir()
+	honest, attacker, att := newSigner(t), newSigner(t), newSigner(t)
+
+	repo := filepath.Join(root, "repo")
+	logDir := filepath.Join(repo, "ev-e1")
+	record(t, newLog(t, logDir, base, attacker), att, 2)
+	for _, p := range []string{"ev-e1/log.pub", ".gatekeeper/keys/e1.pub", "keys/e1.pub"} {
+		writePub(t, filepath.Join(repo, p), attacker)
+	}
+
+	v := filepath.Join(root, "verifier")
+	writePub(t, filepath.Join(v, "e1.pub"), honest)
+	writePub(t, filepath.Join(v, "att.pub"), att)
+
+	write := func(pub string) string {
+		m := map[string]any{"base": base, "epochs": []any{
+			map[string]any{"epoch": 1, "log": logDir, "publicKey": pub, "attesterKeys": []string{"att.pub"}},
+		}}
+		raw, _ := json.Marshal(m)
+		p := filepath.Join(v, "manifest-"+filepath.Base(pub)+".json")
+		writeFile(t, p, raw)
+		return p
+	}
+
+	mustFail(t, "verifier's own key vs attacker's log", chainOf(t, write("e1.pub")), "no valid signature")
+
+	// контроль способности
+	inRepo := filepath.Join(repo, ".gatekeeper", "keys", "e1.pub")
+	mustOK(t, "manifest pointing into the repo", chainOf(t, write(inRepo)))
+}

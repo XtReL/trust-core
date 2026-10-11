@@ -1,0 +1,72 @@
+// Контроль З6. docs/adr/0002-key-rotation.md:70 — «planned без валидной
+// подписи старым ключом → ошибка (не понижается молча до unplanned)».
+// Подкладываем: эпоху 2 с генезисом rotation=planned, подписанным ТОЛЬКО
+// новым ключом (и валидным чекпоинтом заморозки). Ожидание: цепочка не OK
+// с причиной «planned rotation without a valid signature». Для контроля
+// способности: тот же генезис, подписанный обоими ключами, проходит;
+// честная rotate.Planned проходит.
+package acceptance
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"testing"
+
+	"github.com/XtReL/trust-core/attest"
+	"github.com/XtReL/trust-core/event"
+	"github.com/XtReL/trust-core/keys"
+	"github.com/XtReL/trust-core/tlog"
+)
+
+// forgeEpoch2 пишет эпоху 2 вручную: генезис с заданным видом ротации,
+// подписанный указанными ключами.
+func forgeEpoch2(t *testing.T, c *chainEnv, rotation string, signers ...attest.Signer) {
+	t.Helper()
+	msg := c.checkpoint(1)
+	cp, err := tlog.OpenCheckpoint(msg, c.origin(1), c.k[1].Public())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev, err := event.NewLogGenesis(event.LogGenesis{
+		Epoch: 2, PredecessorOrigin: c.origin(1), PredecessorSize: cp.Size,
+		PredecessorRoot:       base64.StdEncoding.EncodeToString(cp.Root[:]),
+		PredecessorCheckpoint: string(msg),
+		PredecessorKeyID:      keys.KeyID(c.k[1].Public()), NewKeyID: keys.KeyID(c.k[2].Public()),
+		Rotation: rotation,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := attest.StatementFromEvent(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := attest.SignStatement(st, signers...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(env)
+	if _, err := newLog(t, c.dir(2), c.origin(2), c.k[2]).Append(raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestC06_PlannedWithoutOldSignatureIsAnError(t *testing.T) {
+	// честная плановая ротация проходит
+	ok := newChainEnv(t, 2)
+	ok.planned()
+	mustOK(t, "honest planned rotation", chainOf(t, ok.manifest("")))
+
+	// подделка: planned, подпись только нового ключа
+	bad := newChainEnv(t, 2)
+	forgeEpoch2(t, bad, event.RotationPlanned, bad.k[2])
+	mustFail(t, "planned genesis signed by the new key only", chainOf(t, bad.manifest("")), "planned rotation without a valid signature")
+
+	// то же с acceptUnplanned: «понижения» до unplanned нет
+	mustFail(t, "planned genesis + acceptUnplanned", chainOf(t, bad.manifest(keys.KeyID(bad.k[2].Public()))), "planned rotation without a valid signature")
+
+	// контроль способности: тот же генезис с обеими подписями проходит
+	both := newChainEnv(t, 2)
+	forgeEpoch2(t, both, event.RotationPlanned, both.k[2], both.k[1])
+	mustOK(t, "planned genesis signed by both keys", chainOf(t, both.manifest("")))
+}

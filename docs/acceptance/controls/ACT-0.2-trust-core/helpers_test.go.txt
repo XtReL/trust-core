@@ -1,0 +1,272 @@
+// Общие помощники контролей ACT-0.2-trust-core (Go).
+// Кладётся во временную копию репозитория как acceptance/helpers_test.go
+// (см. README.md этой папки). Используются только пакеты репозитория и
+// стандартная библиотека.
+package acceptance
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	trustcore "github.com/XtReL/trust-core"
+	"github.com/XtReL/trust-core/attest"
+	"github.com/XtReL/trust-core/event"
+	"github.com/XtReL/trust-core/keys"
+	"github.com/XtReL/trust-core/rotate"
+	"github.com/XtReL/trust-core/tlog"
+	"github.com/XtReL/trust-core/tlog/filelog"
+	"github.com/XtReL/trust-core/verify"
+)
+
+const base = "acceptance.invalid/log"
+
+func newSigner(t *testing.T) *keys.Signer {
+	t.Helper()
+	_, priv, err := keys.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return keys.NewSigner(priv)
+}
+
+func testEvent(t *testing.T, n int) event.Event {
+	t.Helper()
+	c := sha256.Sum256([]byte{byte(n), 1})
+	r := sha256.Sum256([]byte{byte(n), 2})
+	ev, err := event.NewTestResult(
+		[]event.Subject{{Name: "git+https://acceptance.invalid/repo", Digest: map[string]string{"gitCommit": hex.EncodeToString(c[:20])}}},
+		event.TestResult{Result: event.ResultPassed,
+			Configuration: []event.ResourceDescriptor{{Name: "rules", Digest: map[string]string{"sha256": hex.EncodeToString(r[:])}}}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ev
+}
+
+func newLog(t *testing.T, dir, origin string, logKey *keys.Signer) *filelog.Log {
+	t.Helper()
+	l, err := filelog.Init(dir, origin, logKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+func openLog(t *testing.T, dir, origin string, logKey *keys.Signer) *filelog.Log {
+	t.Helper()
+	l, err := filelog.Open(dir, origin, logKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return l
+}
+
+// record appends n normal attestations signed by att.
+func record(t *testing.T, l *filelog.Log, att *keys.Signer, n int) {
+	t.Helper()
+	r := trustcore.Recorder{Attester: att, Log: l}
+	for i := 0; i < n; i++ {
+		if _, err := r.Record(testEvent(t, i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// recordFrom appends one attestation built from event number n.
+func recordFrom(t *testing.T, l *filelog.Log, att *keys.Signer, n int) {
+	t.Helper()
+	r := trustcore.Recorder{Attester: att, Log: l}
+	if _, err := r.Record(testEvent(t, n)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// appendEnvelope signs payload under payloadType with the given signers and
+// appends the envelope as a raw entry.
+func appendEnvelope(t *testing.T, l *filelog.Log, payloadType string, payload []byte, signers ...attest.Signer) {
+	t.Helper()
+	env, err := attest.SignEnvelope(payloadType, payload, signers...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Append(raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func verifiers(att ...*keys.Signer) []attest.Verifier {
+	var out []attest.Verifier
+	for _, a := range att {
+		out = append(out, keys.NewVerifier(a.Public()))
+	}
+	return out
+}
+
+func verifyLog(t *testing.T, dir, origin string, logKey *keys.Signer, att ...*keys.Signer) verify.Report {
+	t.Helper()
+	rep, err := verify.Log(verify.Options{Dir: dir, Origin: origin, LogKey: logKey.Public(), Attesters: verifiers(att...)})
+	if err != nil {
+		t.Fatalf("verify.Log: %v", err)
+	}
+	return rep
+}
+
+func hasSub(list []string, sub string) bool {
+	for _, s := range list {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func readFile(t *testing.T, p string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func writeFile(t *testing.T, p string, b []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writePub(t *testing.T, p string, s *keys.Signer) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := keys.WritePublic(p, s.Public()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// chainEnv is a two-epoch fixture: epoch 1 in ev-e1, epoch 2 in ev-e2,
+// verifier-side keys and manifest under root/verifier.
+type chainEnv struct {
+	t    *testing.T
+	root string
+	k    [3]*keys.Signer // k[1], k[2]: log keys of epochs 1, 2
+	att  *keys.Signer
+	res  rotate.Result
+}
+
+func newChainEnv(t *testing.T, entries int) *chainEnv {
+	t.Helper()
+	c := &chainEnv{t: t, root: t.TempDir(), att: newSigner(t)}
+	c.k[1], c.k[2] = newSigner(t), newSigner(t)
+	l := newLog(t, c.dir(1), c.origin(1), c.k[1])
+	record(t, l, c.att, entries)
+	return c
+}
+
+func (c *chainEnv) dir(k int) string {
+	return filepath.Join(c.root, "repo", "ev-e"+string(rune('0'+k)))
+}
+func (c *chainEnv) origin(k int) string { return event.EpochOrigin(base, k) }
+func (c *chainEnv) checkpoint(k int) []byte {
+	return readFile(c.t, filelog.CheckpointPath(c.dir(k)))
+}
+
+// record appends n attestations to epoch k using that epoch's own log key.
+func (c *chainEnv) record(k, n int) {
+	record(c.t, openLog(c.t, c.dir(k), c.origin(k), c.k[k]), c.att, n)
+}
+
+func (c *chainEnv) planned() {
+	res, err := rotate.Planned(c.dir(1), c.origin(1), c.k[1], c.dir(2), c.k[2], "acceptance")
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	c.res = res
+}
+
+func (c *chainEnv) unplanned(trusted []byte) {
+	res, err := rotate.Unplanned(c.dir(1), c.origin(1), c.k[1].Public(), trusted, c.dir(2), c.k[2], "acceptance")
+	if err != nil {
+		c.t.Fatal(err)
+	}
+	c.res = res
+}
+
+// manifest writes the verifier's own manifest and key files (outside the
+// repo/ tree) and returns its path. accept is acceptUnplanned for epoch 2.
+func (c *chainEnv) manifest(accept string) string {
+	c.t.Helper()
+	v := filepath.Join(c.root, "verifier")
+	writePub(c.t, filepath.Join(v, "e1.pub"), c.k[1])
+	writePub(c.t, filepath.Join(v, "e2.pub"), c.k[2])
+	writePub(c.t, filepath.Join(v, "att.pub"), c.att)
+	e2 := map[string]any{"epoch": 2, "log": c.dir(2), "publicKey": "e2.pub", "attesterKeys": []string{"att.pub"}}
+	if accept != "" {
+		e2["acceptUnplanned"] = accept
+	}
+	m := map[string]any{"base": base, "epochs": []any{
+		map[string]any{"epoch": 1, "log": c.dir(1), "publicKey": "e1.pub", "attesterKeys": []string{"att.pub"}},
+		e2,
+	}}
+	raw, _ := json.Marshal(m)
+	p := filepath.Join(v, "manifest.json")
+	writeFile(c.t, p, raw)
+	return p
+}
+
+func chainOf(t *testing.T, manifestPath string) verify.ChainReport {
+	t.Helper()
+	m, err := verify.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	rep, err := verify.Chain(m)
+	if err != nil {
+		t.Fatalf("Chain: %v", err)
+	}
+	return rep
+}
+
+func mustOK(t *testing.T, what string, rep verify.ChainReport) {
+	t.Helper()
+	if !rep.OK {
+		t.Fatalf("%s: expected OK, got problems: %v", what, rep.Problems)
+	}
+}
+
+func mustFail(t *testing.T, what string, rep verify.ChainReport, sub string) {
+	t.Helper()
+	if rep.OK {
+		t.Fatalf("%s: expected a failure containing %q, but the chain verified OK", what, sub)
+	}
+	if !hasSub(rep.Problems, sub) {
+		t.Fatalf("%s: failed, but not with %q: %v", what, sub, rep.Problems)
+	}
+}
+
+func signCheckpoint(t *testing.T, origin string, leaves []tlog.Hash, s *keys.Signer) []byte {
+	t.Helper()
+	out, err := tlog.SignCheckpoint(tlog.Checkpoint{Origin: origin, Size: uint64(len(leaves)), Root: tlog.RootFromLeaves(leaves)}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func sameBytes(a, b []byte) bool { return bytes.Equal(a, b) }

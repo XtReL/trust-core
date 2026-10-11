@@ -1,0 +1,95 @@
+// Контроль З3. README.md:71 — «Каждая запись — конверт DSSE с подписью
+// доверенного ключа и корректным in-toto Statement».
+// Подкладываем (каждый случай — отдельный журнал, чекпоинт подписан честно):
+//
+//	a) запись, подписанная недоверенным ключом;
+//	b) запись с подписью недоверенного ключа, но с подсказкой keyid доверенного;
+//	c) конверт доверенного ключа с другим payloadType;
+//	d) подпись доверенного ключа под JSON с неверным _type;
+//	e) подпись доверенного ключа под Statement без subject;
+//	f) запись — не JSON.
+//
+// Ожидание: Report.OK == false и конкретная причина в Problems.
+// Исходный случай (честная запись) должен давать OK.
+package acceptance
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/XtReL/trust-core/attest"
+)
+
+func TestC03_EntryMustBeTrustedDSSEWithStatement(t *testing.T) {
+	ls, trusted, evil := newSigner(t), newSigner(t), newSigner(t)
+
+	type tc struct {
+		name string
+		add  func(t *testing.T, dir string)
+		want string // подстрока в Problems; "" — ожидается OK
+	}
+	goodStatement := func() []byte {
+		st, err := attest.StatementFromEvent(testEvent(t, 9))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := json.Marshal(st)
+		return b
+	}
+	cases := []tc{
+		{"honest entry (baseline)", func(t *testing.T, dir string) {
+			record(t, openLog(t, dir, base, ls), trusted, 1)
+		}, ""},
+		{"a) untrusted signer", func(t *testing.T, dir string) {
+			record(t, openLog(t, dir, base, ls), evil, 1)
+		}, "no valid signature from a trusted key"},
+		{"b) untrusted signature, trusted keyid hint", func(t *testing.T, dir string) {
+			payload := goodStatement()
+			env, err := attest.SignEnvelope(attest.PayloadType, payload, evil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			env.Signatures[0].KeyID = trusted.KeyID()
+			raw, _ := json.Marshal(env)
+			if _, err := openLog(t, dir, base, ls).Append(raw); err != nil {
+				t.Fatal(err)
+			}
+		}, "no valid signature from a trusted key"},
+		{"c) wrong payloadType", func(t *testing.T, dir string) {
+			appendEnvelope(t, openLog(t, dir, base, ls), "text/plain", goodStatement(), trusted)
+		}, "unexpected payloadType"},
+		{"d) wrong statement _type", func(t *testing.T, dir string) {
+			p := []byte(`{"_type":"https://in-toto.io/Statement/v0.1","subject":[{"name":"x","digest":{"sha256":"00"}}],"predicateType":"x","predicate":{}}`)
+			appendEnvelope(t, openLog(t, dir, base, ls), attest.PayloadType, p, trusted)
+		}, "unexpected statement _type"},
+		{"e) statement without subject", func(t *testing.T, dir string) {
+			p := []byte(`{"_type":"` + attest.StatementType + `","subject":[],"predicateType":"x","predicate":{}}`)
+			appendEnvelope(t, openLog(t, dir, base, ls), attest.PayloadType, p, trusted)
+		}, "missing subject or predicateType"},
+		{"f) not JSON", func(t *testing.T, dir string) {
+			if _, err := openLog(t, dir, base, ls).Append([]byte("not an envelope")); err != nil {
+				t.Fatal(err)
+			}
+		}, "not a DSSE envelope"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir() + "/log"
+			newLog(t, dir, base, ls)
+			c.add(t, dir)
+			rep := verifyLog(t, dir, base, ls, trusted)
+			if c.want == "" {
+				if !rep.OK {
+					t.Fatalf("expected OK, got %v", rep.Problems)
+				}
+				return
+			}
+			if rep.OK {
+				t.Fatalf("log with a bad entry verified OK")
+			}
+			if !hasSub(rep.Problems, c.want) {
+				t.Fatalf("rejected, but not with %q: %v", c.want, rep.Problems)
+			}
+		})
+	}
+}

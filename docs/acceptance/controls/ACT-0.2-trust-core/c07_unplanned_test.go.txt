@@ -1,0 +1,29 @@
+// Контроль З7. README.md:115 — «Внеплановая ротация принимается только с
+// acceptUnplanned, равным keyid нового ключа».
+// Подкладываем манифесты для одной и той же внеплановой цепочки:
+// без acceptUnplanned; с keyid старого ключа; со случайным keyid;
+// с верным keyid. Ожидание: первые три — цепочка не OK с причиной,
+// последний — OK.
+package acceptance
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/XtReL/trust-core/keys"
+)
+
+func TestC07_UnplannedNeedsExactAcceptance(t *testing.T) {
+	c := newChainEnv(t, 2)
+	c.unplanned(c.checkpoint(1))
+	c.record(2, 1)
+
+	mustFail(t, "no acceptUnplanned", chainOf(t, c.manifest("")), "is not accepted by the manifest")
+	mustFail(t, "old key id", chainOf(t, c.manifest(keys.KeyID(c.k[1].Public()))), "but the manifest accepts")
+	mustFail(t, "random key id", chainOf(t, c.manifest(strings.Repeat("ab", 32))), "but the manifest accepts")
+	rep := chainOf(t, c.manifest(keys.KeyID(c.k[2].Public())))
+	mustOK(t, "exact new key id", rep)
+	if rep.Epochs[1].Rotation != "unplanned" {
+		t.Fatalf("epoch 2 must be reported as unplanned, got %q", rep.Epochs[1].Rotation)
+	}
+}

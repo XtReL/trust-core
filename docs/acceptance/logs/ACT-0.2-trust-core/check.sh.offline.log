@@ -1,0 +1,70 @@
+# scripts/check.sh на коммите f419b0d (ветка acceptance/act-v0 = main), рабочее дерево без изменений кода.
+# Запуск: GOTOOLCHAIN=local GOFLAGS=-mod=readonly GOPROXY=off bash scripts/check.sh
+# начало 2026-10-11T03:42:06Z, конец 2026-10-11T03:42:25Z (UTC).
+# GOPROXY=off: сеть для загрузки модулей запрещена правилами акта; шаг interop (go mod tidy) поэтому не может завершиться.
+# Результат: задание test — зелёное; задание interop — красное; check: OK НЕ напечатано, код выхода 1.
+== job: test ==
+-- gofmt --
+-- vet --
+-- test --
+?   	github.com/XtReL/trust-core	[no test files]
+ok  	github.com/XtReL/trust-core/attest	1.023s
+?   	github.com/XtReL/trust-core/cmd/trustcore	[no test files]
+ok  	github.com/XtReL/trust-core/event	1.015s
+ok  	github.com/XtReL/trust-core/keys	1.026s
+ok  	github.com/XtReL/trust-core/rotate	1.113s
+ok  	github.com/XtReL/trust-core/tlog	1.193s
+?   	github.com/XtReL/trust-core/tlog/filelog	[no test files]
+ok  	github.com/XtReL/trust-core/verify	2.101s
+-- end-to-end demo --
+== 1. keys: log operator + attester (scanner)
+key id:   2e3817dac7e8d52e2e45d3433f89a66d610314f8015a2b1596c88133ea5a3090
+private:  /tmp/tmp.QuxQxPjHzi/log.key  (never commit this)
+public:   /tmp/tmp.QuxQxPjHzi/log.pub
+vkey:     trust.example.com/demo/gatekeeper+b238d02f+AZSXMgyDum9M+5L5XVQKNDJ3q6BoFSwyfPesLHueWpVj
+== 2. empty log
+initialised empty log trust.example.com/demo/gatekeeper at /tmp/tmp.QuxQxPjHzi/tlog
+== 3. two scans recorded; the client keeps this checkpoint
+== 4. one more scan, then full verification against the kept checkpoint
+log:       trust.example.com/demo/gatekeeper
+size:      3
+root:      vqnkLbczRHhe3W2REH8JefBvf1tA6FHbSzlhWXeuqvI=
+history:   first 2 entries match the previous checkpoint
+OK: checkpoint signature, Merkle root and all entry signatures verified
+== 5. single-entry proof (client holds only entry 1)
+OK: entry 1 is included in the log at size 3
+== 6. planned key rotation: epoch 2 with a new log key (ADR 0002)
+rotation: planned
+epoch:    2
+origin:   trust.example.com/demo/gatekeeper/e2
+key id:   d4106f22b74124d46b18bd4427b4b61c2eaff5f26e40cfa268673280536f41c7
+vkey:     trust.example.com/demo/gatekeeper/e2+f980a09a+Ad87HcEA6MkVjNQPuclbwCSCl2Vts4gJqmLcFZwywJ82
+frozen:   trust.example.com/demo/gatekeeper at size 3
+== 7. verify the chain with the verifier's own manifest
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root vqnkLbczRHhe3W2REH8JefBvf1tA6FHbSzlhWXeuqvI=  frozen  ok
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root n8Oh4CtMuHcBk8yMLF985bYmLgGBglJLCOmsW97t8qM=  (planned rotation)  ok
+OK: every epoch verified and linked by its genesis
+== 8. the old key keeps writing to the frozen epoch: rejected
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root vqnkLbczRHhe3W2REH8JefBvf1tA6FHbSzlhWXeuqvI=  frozen  FAILED
+  current checkpoint size 4 (not authoritative for a frozen epoch)
+  warning: 1 entry(ies) after the freeze point are NOT confirmed: [3]
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root n8Oh4CtMuHcBk8yMLF985bYmLgGBglJLCOmsW97t8qM=  (planned rotation)  ok
+old-key misuse detected (expected)
+== 9. tamper: add one space to entry 0
+log:       trust.example.com/demo/gatekeeper
+size:      3
+root:      vqnkLbczRHhe3W2REH8JefBvf1tA6FHbSzlhWXeuqvI=
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root vqnkLbczRHhe3W2REH8JefBvf1tA6FHbSzlhWXeuqvI=  frozen  FAILED
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root n8Oh4CtMuHcBk8yMLF985bYmLgGBglJLCOmsW97t8qM=  (planned rotation)  ok
+tampering detected (expected)
+DEMO PASSED
+== job: interop ==
+-- reference implementations (golang.org/x/mod/sumdb) --
+go: downloading golang.org/x/mod v0.22.0
+go: github.com/XtReL/trust-core/interop tested by
+	github.com/XtReL/trust-core/interop.test imports
+	golang.org/x/mod/sumdb/note: module lookup disabled by GOPROXY=off
+go: github.com/XtReL/trust-core/interop tested by
+	github.com/XtReL/trust-core/interop.test imports
+	golang.org/x/mod/sumdb/tlog: module lookup disabled by GOPROXY=off
+check.sh exit code: 1

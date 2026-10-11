@@ -1,0 +1,64 @@
+// Контроль З8. README.md:116 — «Для замороженной эпохи авторитетен
+// чекпоинт заморозки из генезиса: записи до него проверяются по нему, а
+// текущий файл checkpoint (его откат или битая подпись) только выводится
+// в отчёт».
+// Подкладываем после внеплановой ротации: (a) откат текущего checkpoint
+// старой эпохи на размер 1 с валидной подписью старого ключа; (b) мусор
+// вместо checkpoint; (c) правка записи 1 ниже точки заморозки.
+// Ожидание: (a), (b) — цепочка OK, Size отчёта остаётся размером заморозки,
+// причина в Notes; (c) — цепочка не OK.
+package acceptance
+
+import (
+	"testing"
+
+	"github.com/XtReL/trust-core/keys"
+	"github.com/XtReL/trust-core/tlog/filelog"
+)
+
+func TestC08_FrozenEpochUsesFreezeCheckpoint(t *testing.T) {
+	c := newChainEnv(t, 3)
+	kept := c.checkpoint(1) // доверенная копия: размер 3
+	c.unplanned(kept)
+	c.record(2, 1)
+	m := c.manifest(keys.KeyID(c.k[2].Public()))
+
+	rep := chainOf(t, m)
+	mustOK(t, "baseline", rep)
+	if e := rep.Epochs[0]; !e.Frozen || e.Size != 3 {
+		t.Fatalf("baseline: epoch 1 must be frozen at size 3, got frozen=%v size=%d", e.Frozen, e.Size)
+	}
+
+	cpPath := filelog.CheckpointPath(c.dir(1))
+	good := readFile(t, cpPath)
+
+	// (a) откат с валидной подписью
+	leaves, err := filelog.LeafHashes(c.dir(1), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, cpPath, signCheckpoint(t, c.origin(1), leaves, c.k[1]))
+	rep = chainOf(t, m)
+	mustOK(t, "(a) rolled-back current checkpoint", rep)
+	e := rep.Epochs[0]
+	if e.CurrentSize == nil || *e.CurrentSize != 1 || e.Size != 3 || !hasSub(e.Notes, "behind the freeze checkpoint") {
+		t.Fatalf("(a) report must show current size 1, authoritative size 3 and a note: currentSize=%v size=%d notes=%v", e.CurrentSize, e.Size, e.Notes)
+	}
+
+	// (b) битый checkpoint
+	writeFile(t, cpPath, []byte("garbage\n"))
+	rep = chainOf(t, m)
+	mustOK(t, "(b) broken current checkpoint", rep)
+	if !hasSub(rep.Epochs[0].Notes, "does not verify") {
+		t.Fatalf("(b) expected a note about the broken checkpoint: %v", rep.Epochs[0].Notes)
+	}
+	writeFile(t, cpPath, good)
+
+	// (c) правка записи ниже точки заморозки: контроль способен краснеть
+	ep := filelog.EntryPath(c.dir(1), 1)
+	orig := readFile(t, ep)
+	writeFile(t, ep, append(append([]byte{}, orig...), ' '))
+	mustFail(t, "(c) entry below the freeze point modified", chainOf(t, m), "history was rewritten before the freeze point")
+	writeFile(t, ep, orig)
+	mustOK(t, "restored", chainOf(t, m))
+}

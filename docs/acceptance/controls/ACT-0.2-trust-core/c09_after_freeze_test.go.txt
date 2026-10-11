@@ -1,0 +1,43 @@
+// Контроль З9. README.md:117 — «Записи старой эпохи после точки заморозки
+// выводятся как "не подтверждены". После плановой ротации их наличие —
+// ошибка».
+// Подкладываем: владелец старого ключа дописывает записи в старую эпоху
+// после ротации. (a) внеплановая: 2 записи (индексы 3 и 4) — цепочка OK,
+// Unconfirmed == 2, UnconfirmedEntries == [3 4], Size остаётся 3;
+// (b) плановая: 1 запись — цепочка не OK. До дописывания обе цепочки OK
+// без «неподтверждённых» (контроль способности).
+package acceptance
+
+import (
+	"testing"
+
+	"github.com/XtReL/trust-core/keys"
+)
+
+func TestC09_EntriesAfterFreezeAreUnconfirmedOrError(t *testing.T) {
+	// (a) внеплановая
+	u := newChainEnv(t, 3)
+	u.unplanned(u.checkpoint(1))
+	u.record(2, 1)
+	mu := u.manifest(keys.KeyID(u.k[2].Public()))
+	rep := chainOf(t, mu)
+	mustOK(t, "(a) before old-key writes", rep)
+	if rep.Epochs[0].Unconfirmed != 0 {
+		t.Fatalf("(a) before: expected 0 unconfirmed, got %d", rep.Epochs[0].Unconfirmed)
+	}
+	u.record(1, 2)
+	rep = chainOf(t, mu)
+	mustOK(t, "(a) after old-key writes (unplanned)", rep)
+	e := rep.Epochs[0]
+	if e.Unconfirmed != 2 || len(e.UnconfirmedEntries) != 2 || e.UnconfirmedEntries[0] != 3 || e.UnconfirmedEntries[1] != 4 || e.Size != 3 {
+		t.Fatalf("(a) expected unconfirmed [3 4] and size 3, got n=%d list=%v size=%d", e.Unconfirmed, e.UnconfirmedEntries, e.Size)
+	}
+
+	// (b) плановая
+	p := newChainEnv(t, 3)
+	p.planned()
+	mp := p.manifest("")
+	mustOK(t, "(b) before old-key writes", chainOf(t, mp))
+	p.record(1, 1)
+	mustFail(t, "(b) old-key write after a planned rotation", chainOf(t, mp), "after the freeze point of a planned rotation")
+}
