@@ -190,6 +190,7 @@
 - Нумерация контролей переименована по рангу цены пропуска до фиксации результатов; все протоколы получены после переименования.
 - Скрипт `c10_private_keys.sh` содержит искомый base64-префикс разбитым на части, чтобы поиск по истории не находил сам контроль после коммита.
 - Константы эталонов в `c13` записаны по памяти (см. допущения З13).
+- Повторный прогон на коммите акта `171be22` (в истории уже есть сам акт и контроли): `run_all.sh` — код 0, `c10_private_keys.sh` по 23 коммитам — 0 находок в реальной истории и 2 в подложенном случае (самосрабатывания нет); `mutations.sh` — 12 из 12 «killed» (`logs/ACT-0.2-trust-core/run_all.act-commit.log`, `mutations.act-commit.log`, 2026-10-11T03:52:55Z–03:53:08Z).
 
 ## Воспроизведение
 
@@ -200,9 +201,9 @@ bash docs/acceptance/controls/ACT-0.2-trust-core/mutations.sh    # способ�
 GOTOOLCHAIN=local GOFLAGS=-mod=readonly GOPROXY=off bash scripts/check.sh   # красный на шаге interop без сети
 ```
 
-### Файлы, добавленные актом (определение: пути, которых нет в `main`; всего 26 файлов под `docs/acceptance/`: акт 1, папка контролей 22 (включая её `README.md`), протоколы 3; изменённых файлов `main` — 0)
+### Файлы, добавленные актом (определение: пути, которых нет в `main`; всего 28 файлов под `docs/acceptance/`: акт 1, папка контролей 22 (включая её `README.md`), протоколы 5 (3 на базовом коммите `f419b0d`, 2 на коммите акта); изменённых файлов `main` — 0)
 
 `docs/acceptance/ACT-0.2-trust-core.md`; `docs/acceptance/controls/ACT-0.2-trust-core/` — `README.md`, `helpers_test.go.txt`, `c01_tamper_test.go.txt`, `c02_checkpoint_test.go.txt`,
 `c03_entries_test.go.txt`, `c04_manifest_keys_test.go.txt`, `c05_previous_test.go.txt`, `c06_planned_downgrade_test.go.txt`, `c07_unplanned_test.go.txt`, `c08_frozen_test.go.txt`,
 `c09_after_freeze_test.go.txt`, `c10_private_keys.sh`, `c11_backward_compat.sh`, `c12_interop_blocked.sh`, `c13_standards_test.go.txt`, `c14_no_deps.sh`, `c15_exit_codes.sh`,
-`f01_findings_test.go.txt`, `f02_text_findings.sh`, `mutations.sh`, `run_all.sh`, `e01_environment.sh`; `docs/acceptance/logs/ACT-0.2-trust-core/` — `check.sh.offline.log`, `run_all.base.log`, `mutations.base.log`.
+`f01_findings_test.go.txt`, `f02_text_findings.sh`, `mutations.sh`, `run_all.sh`, `e01_environment.sh`; `docs/acceptance/logs/ACT-0.2-trust-core/` — `check.sh.offline.log`, `run_all.base.log`, `mutations.base.log`, `run_all.act-commit.log`, `mutations.act-commit.log`.
