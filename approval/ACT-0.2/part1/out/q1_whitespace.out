@@ -1,0 +1,78 @@
+# control: q1_whitespace.sh
+# object:  f419b0d1693e6d3c06b7effa813239d129f31d6d
+# date:    2026-10-12T07:55:14Z
+# go:      go version go1.24.7 linux/amd64
+object copy: /tmp/tmp.uFrqLfMtKR
+work dir:    /tmp/tmp.UEPJ2fQQl0
+key id:   da6d62e935d898ebdfc28404a534d009b17d49117cd4ab6df7aa5c7bf930a81e
+private:  /tmp/tmp.UEPJ2fQQl0/keys/log.key  (never commit this)
+public:   /tmp/tmp.UEPJ2fQQl0/keys/log.pub
+vkey:     trust.example.com/act02/control+38a382dc+AaCQlMLSTg5o7Kr4ShmuuTriUNZxWLCXSww8WKpoj4S1
+key id:   92c4e649405419aada5f4ac46fcde0534e9309a1e308daa2cfef71c36976839d
+private:  /tmp/tmp.UEPJ2fQQl0/keys/att.key  (never commit this)
+public:   /tmp/tmp.UEPJ2fQQl0/keys/att.pub
+
+$ /tmp/tmp.UEPJ2fQQl0/trustcore verify -log /tmp/tmp.UEPJ2fQQl0/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.UEPJ2fQQl0/keys/log.pub -attester-pub /tmp/tmp.UEPJ2fQQl0/keys/att.pub
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      gs2upSxGm3BU+GxObtkwFz7fxcGl8566Td4+FcOYi74=
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   untouched log: exit 0
+ASSERT OK:   untouched log: OK line
+
+entry 1 has 0 space byte(s) before the change
+
+== variant A: one space inserted after the first ':' ==
+bytes: 1032 -> 1033
+  16  42  40
+  17 141  42
+  18 160 141
+diff of first 40 bytes:
+{"payloadType":"application/vnd.in-toto+
+{"payloadType": "application/vnd.in-toto
+ASSERT OK:   variant A: exactly one byte added
+ASSERT OK:   variant A: entry still parses as JSON
+
+$ /tmp/tmp.UEPJ2fQQl0/trustcore verify -log /tmp/tmp.UEPJ2fQQl0/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.UEPJ2fQQl0/keys/log.pub -attester-pub /tmp/tmp.UEPJ2fQQl0/keys/att.pub
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      gs2upSxGm3BU+GxObtkwFz7fxcGl8566Td4+FcOYi74=
+--- stderr ---
+ - entries on disk do not match the signed checkpoint root (log was modified)
+VERIFICATION FAILED: 1 problem(s)
+--- exit: 1 ---
+ASSERT OK:   variant A: exit code 1
+ASSERT OK:   variant A: stderr is exactly the root-mismatch problem + summary
+ASSERT OK:   variant A: no OK line
+ASSERT OK:   variant A: report still names the log
+
+== variant B: one space appended at the end of the file ==
+bytes: 1032 -> 1033
+cmp: EOF on /tmp/tmp.UEPJ2fQQl0/entry1.orig after byte 1032
+diff of first 40 bytes:
+{"payloadType":"application/vnd.in-toto+
+{"payloadType":"application/vnd.in-toto+
+ASSERT OK:   variant B: exactly one byte added
+ASSERT OK:   variant B: entry still parses as JSON
+
+$ /tmp/tmp.UEPJ2fQQl0/trustcore verify -log /tmp/tmp.UEPJ2fQQl0/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.UEPJ2fQQl0/keys/log.pub -attester-pub /tmp/tmp.UEPJ2fQQl0/keys/att.pub
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      gs2upSxGm3BU+GxObtkwFz7fxcGl8566Td4+FcOYi74=
+--- stderr ---
+ - entries on disk do not match the signed checkpoint root (log was modified)
+VERIFICATION FAILED: 1 problem(s)
+--- exit: 1 ---
+ASSERT OK:   variant B: exit code 1
+ASSERT OK:   variant B: stderr is exactly the root-mismatch problem + summary
+ASSERT OK:   variant B: no OK line
+ASSERT OK:   variant B: report still names the log
+
+RESULT: all assertions match the expected answer
+cleanup: removed /tmp/tmp.UEPJ2fQQl0 (keys, logs, binary)
+# exit: 0

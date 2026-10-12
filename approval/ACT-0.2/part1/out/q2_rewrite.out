@@ -1,0 +1,143 @@
+# control: q2_rewrite.sh
+# object:  f419b0d1693e6d3c06b7effa813239d129f31d6d
+# date:    2026-10-12T07:55:15Z
+# go:      go version go1.24.7 linux/amd64
+object copy: /tmp/tmp.uFrqLfMtKR
+work dir:    /tmp/tmp.ixz6oO3FTi
+key id:   c80e496bd308882f06dff25ff62f51d29a107f765a08cf05fdb106ddb9fd441f
+private:  /tmp/tmp.ixz6oO3FTi/keys/log.key  (never commit this)
+public:   /tmp/tmp.ixz6oO3FTi/keys/log.pub
+vkey:     trust.example.com/act02/control+7247e3fe+AaP8RFqVEG0y3Iu40X0Y4xXUyNXTXfAhW6XfMEOxhgIS
+key id:   b356127734ffe840529954103f1e70217f48c9a84283f6dd796831ec06816352
+private:  /tmp/tmp.ixz6oO3FTi/keys/att.key  (never commit this)
+public:   /tmp/tmp.ixz6oO3FTi/keys/att.pub
+
+checkpoint kept by the client before the rewrite:
+trust.example.com/act02/control
+3
+sRy4ULujfgzsAaC73IHC1VbHKuziwIRuKcVV85xq4ls=
+
+— trust.example.com/act02/control ckfj/uGICQ/rHBSycGfcC6g4f8cLG/hWxPixG6gn2lhXooRot7JIp90VayXuKb9oR//3Zh5GXq3p6to0vdDqShnFHAw=
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub -previous /tmp/tmp.ixz6oO3FTi/kept/checkpoint
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      sRy4ULujfgzsAaC73IHC1VbHKuziwIRuKcVV85xq4ls=
+history:   first 3 entries match the previous checkpoint
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   before rewrite, -previous: exit 0
+ASSERT OK:   before rewrite, -previous: history line
+
+rewritten checkpoint now on disk:
+trust.example.com/act02/control
+3
+/s+vS7komcQ2yf4yYjblP56hU6xqIBVpDpw27XcuTgo=
+
+— trust.example.com/act02/control ckfj/ov1S7FVQG3OogxhTTxp3Vv673QZC713r8CBpgBvfIuEkM3BeacbYvjzqyWJ50VFI8+CfGg5lXw+S/1yYLWBrwc=
+ASSERT OK:   rewrite changed the root
+ASSERT OK:   rewrite keeps the size at 3
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      /s+vS7komcQ2yf4yYjblP56hU6xqIBVpDpw27XcuTgo=
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   rewritten, no -previous: exit 0 (not detectable by design)
+ASSERT OK:   rewritten, no -previous: OK line
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub -previous /tmp/tmp.ixz6oO3FTi/kept/checkpoint
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      /s+vS7komcQ2yf4yYjblP56hU6xqIBVpDpw27XcuTgo=
+--- stderr ---
+ - history was rewritten: first entries no longer match the previous checkpoint
+VERIFICATION FAILED: 1 problem(s)
+--- exit: 1 ---
+ASSERT OK:   rewritten, -previous kept: exit 1
+ASSERT OK:   rewritten, -previous kept: stderr is the rewrite problem + summary
+ASSERT OK:   rewritten, -previous kept: no OK line
+
+empty previous file size: 0
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub -previous /tmp/tmp.ixz6oO3FTi/kept/empty
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      3
+root:      /s+vS7komcQ2yf4yYjblP56hU6xqIBVpDpw27XcuTgo=
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   rewritten, -previous EMPTY file: exit 0 (check silently skipped)
+ASSERT OK:   rewritten, -previous EMPTY file: OK line printed
+ASSERT OK:   rewritten, -previous EMPTY file: no history line
+ASSERT OK:   rewritten, -previous EMPTY file: stderr empty (no warning)
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub -previous /tmp/tmp.ixz6oO3FTi/kept/empty -json
+--- stdout ---
+{
+  "origin": "trust.example.com/act02/control",
+  "size": 3,
+  "root": "/s+vS7komcQ2yf4yYjblP56hU6xqIBVpDpw27XcuTgo=",
+  "entries": [
+    {
+      "index": 0,
+      "ok": true,
+      "keyIds": [
+        "b356127734ffe840529954103f1e70217f48c9a84283f6dd796831ec06816352"
+      ],
+      "predicateType": "https://in-toto.io/attestation/test-result/v0.1",
+      "subjects": [
+        "git+https://github.com/XtReL/test-leak-repo"
+      ]
+    },
+    {
+      "index": 1,
+      "ok": true,
+      "keyIds": [
+        "b356127734ffe840529954103f1e70217f48c9a84283f6dd796831ec06816352"
+      ],
+      "predicateType": "https://in-toto.io/attestation/test-result/v0.1",
+      "subjects": [
+        "git+https://github.com/XtReL/test-leak-repo"
+      ]
+    },
+    {
+      "index": 2,
+      "ok": true,
+      "keyIds": [
+        "b356127734ffe840529954103f1e70217f48c9a84283f6dd796831ec06816352"
+      ],
+      "predicateType": "https://in-toto.io/attestation/test-result/v0.1",
+      "subjects": [
+        "git+https://github.com/XtReL/test-leak-repo"
+      ]
+    }
+  ],
+  "uncommitted": 0,
+  "ok": true
+}
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   -json with EMPTY -previous: exit 0
+ASSERT OK:   -json with EMPTY -previous: no previousSize in report
+ASSERT OK:   -json with EMPTY -previous: ok true
+
+$ /tmp/tmp.ixz6oO3FTi/trustcore verify -log /tmp/tmp.ixz6oO3FTi/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.ixz6oO3FTi/keys/log.pub -attester-pub /tmp/tmp.ixz6oO3FTi/keys/att.pub -previous /tmp/tmp.ixz6oO3FTi/kept/does-not-exist
+--- stdout ---
+--- stderr ---
+error: open /tmp/tmp.ixz6oO3FTi/kept/does-not-exist: no such file or directory
+--- exit: 2 ---
+ASSERT OK:   -previous missing file: exit 2
+ASSERT OK:   -previous missing file: error message
+
+RESULT: all assertions match the expected answer
+cleanup: removed /tmp/tmp.ixz6oO3FTi (keys, logs, binary)
+# exit: 0

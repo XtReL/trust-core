@@ -1,0 +1,68 @@
+# control: q3_exit_codes.sh
+# object:  f419b0d1693e6d3c06b7effa813239d129f31d6d
+# date:    2026-10-12T07:55:15Z
+# go:      go version go1.24.7 linux/amd64
+object copy: /tmp/tmp.uFrqLfMtKR
+work dir:    /tmp/tmp.1ZqX5ACoRk
+key id:   bef25759e2a553e114fe035709c5b1804df7d3577b054e5badce49984303a42c
+private:  /tmp/tmp.1ZqX5ACoRk/keys/log.key  (never commit this)
+public:   /tmp/tmp.1ZqX5ACoRk/keys/log.pub
+vkey:     trust.example.com/act02/control+1090799d+AZCGK0aHgGucNmYQjdliHd+BzIMx8Ep8Fj6iIRKzhwfy
+key id:   cd62715235dabed2828fcafe5ede40b2179549a441615920da98afbcdd36cdbf
+private:  /tmp/tmp.1ZqX5ACoRk/keys/att.key  (never commit this)
+public:   /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+
+$ /tmp/tmp.1ZqX5ACoRk/trustcore verify -log /tmp/tmp.1ZqX5ACoRk/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.1ZqX5ACoRk/keys/log.pub -attester-pub /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+--- stdout ---
+log:       trust.example.com/act02/control
+size:      1
+root:      uuKW2N5EypgyBwlw2ts5kDN287jvEbjfZ1GlnSYdlVY=
+OK: checkpoint signature, Merkle root and all entry signatures verified
+--- stderr ---
+--- exit: 0 ---
+ASSERT OK:   existing log and keys: exit 0
+ASSERT OK:   precondition: /tmp/tmp.1ZqX5ACoRk/nolog does not exist
+
+$ /tmp/tmp.1ZqX5ACoRk/trustcore verify -log /tmp/tmp.1ZqX5ACoRk/nolog -origin trust.example.com/act02/control -log-pub /tmp/tmp.1ZqX5ACoRk/keys/log.pub -attester-pub /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+--- stdout ---
+--- stderr ---
+VERIFICATION FAILED: open /tmp/tmp.1ZqX5ACoRk/nolog/checkpoint: no such file or directory
+--- exit: 1 ---
+ASSERT OK:   missing -log dir: exit 1
+ASSERT OK:   missing -log dir: reported as verification failure
+ASSERT OK:   precondition: /tmp/tmp.1ZqX5ACoRk/keys/nope.pub does not exist
+
+$ /tmp/tmp.1ZqX5ACoRk/trustcore verify -log /tmp/tmp.1ZqX5ACoRk/log -origin trust.example.com/act02/control -log-pub /tmp/tmp.1ZqX5ACoRk/keys/nope.pub -attester-pub /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+--- stdout ---
+--- stderr ---
+error: open /tmp/tmp.1ZqX5ACoRk/keys/nope.pub: no such file or directory
+--- exit: 2 ---
+ASSERT OK:   missing -log-pub file: exit 2
+ASSERT OK:   missing -log-pub file: reported as error
+
+$ /tmp/tmp.1ZqX5ACoRk/trustcore verify -log /tmp/tmp.1ZqX5ACoRk/nolog -origin trust.example.com/act02/control -log-pub /tmp/tmp.1ZqX5ACoRk/keys/nope.pub -attester-pub /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+--- stdout ---
+--- stderr ---
+error: open /tmp/tmp.1ZqX5ACoRk/keys/nope.pub: no such file or directory
+--- exit: 2 ---
+ASSERT OK:   both missing: exit 2 (key loaded first)
+
+$ /tmp/tmp.1ZqX5ACoRk/trustcore verify -log /tmp/tmp.1ZqX5ACoRk/log -attester-pub /tmp/tmp.1ZqX5ACoRk/keys/att.pub
+--- stdout ---
+--- stderr ---
+error: verify: -log-pub is required
+--- exit: 2 ---
+ASSERT OK:   missing required -log-pub flag: exit 2
+
+README.md exit-code line:
+45:Коды выхода: `0` — всё проверено, `1` — проверка не прошла, `2` — ошибка использования.
+cmd/trustcore/main.go header:
+4:// Exit codes: 0 = ok, 1 = verification failed, 2 = usage or I/O error.
+ASSERT OK:   README documents 2 as usage error only
+ASSERT OK:   README does not mention I/O errors
+ASSERT OK:   CLI header documents 2 as usage OR I/O error
+ASSERT OK:   inconsistency: missing -log and missing -log-pub give different codes
+
+RESULT: all assertions match the expected answer
+cleanup: removed /tmp/tmp.1ZqX5ACoRk (keys, logs, binary)
+# exit: 0
