@@ -1,0 +1,11 @@
+# мутация M2; контроль TestC02
+# изменения (файл | было | стало):
+#   verify/verify.go | tlog.OpenCheckpoint(msg, opts.Origin, opts.LogKey) | tlog.OpenCheckpoint(msg, "", opts.LogKey)
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC02 -count=1 -v
+=== RUN   TestC02_CheckpointKeyAndOrigin
+    c02_checkpoint_test.go:41: wrong expected origin accepted
+--- FAIL: TestC02_CheckpointKeyAndOrigin (0.01s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.014s
+FAIL

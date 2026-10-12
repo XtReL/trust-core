@@ -1,0 +1,11 @@
+# мутация M8; контроль TestC08
+# изменения (файл | было | стало):
+#   verify/chain.go | note("current checkpoint (size %d) is behind | bad("current checkpoint (size %d) is behind
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC08 -count=1 -v
+=== RUN   TestC08_FrozenEpochUsesFreezeCheckpoint
+    c08_frozen_test.go:42: (a) rolled-back current checkpoint: expected OK, got problems: [epoch 1: current checkpoint (size 1) is behind the freeze checkpoint (size 3) (ignored for a frozen epoch)]
+--- FAIL: TestC08_FrozenEpochUsesFreezeCheckpoint (0.02s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.018s
+FAIL

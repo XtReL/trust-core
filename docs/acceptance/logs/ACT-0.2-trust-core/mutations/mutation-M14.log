@@ -1,0 +1,11 @@
+# мутация M14; контроль TestC14g
+# изменения (файл | было | стало):
+#   attest/statement.go | StatementType = "https://in-toto.io/Statement/v1" | StatementType = "https://in-toto.io/Statement/v0.1"
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14g -count=1 -v
+=== RUN   TestC14g_InTotoStringsFromSpecs
+    c14_standards_test.go:316: StatementType "https://in-toto.io/Statement/v0.1", spec "https://in-toto.io/Statement/v1"
+--- FAIL: TestC14g_InTotoStringsFromSpecs (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.005s
+FAIL

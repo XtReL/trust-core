@@ -1,0 +1,12 @@
+# мутация M7; контроль TestC07
+# изменения (файл | было | стало):
+#   verify/chain.go | bad("unplanned rotation to key %s is not accepted by the manifest (acceptUnplanned)", g.NewKeyID) | _ = 0
+#   verify/chain.go | bad("unplanned rotation to key %s, but the manifest accepts %s", g.NewKeyID, cur.AcceptUnplanned) | _ = 0
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC07 -count=1 -v
+=== RUN   TestC07_UnplannedNeedsExactAcceptance
+    c07_unplanned_test.go:21: no acceptUnplanned: expected a failure containing "is not accepted by the manifest", but the chain verified OK
+--- FAIL: TestC07_UnplannedNeedsExactAcceptance (0.01s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.017s
+FAIL

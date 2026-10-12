@@ -1,0 +1,25 @@
+# мутация M3; контроль TestC03
+# изменения (файл | было | стало):
+#   attest/dsse.go | if !seen[v.KeyID()] && v.Verify(pae, sig) { | if !seen[v.KeyID()] && (v.Verify(pae, sig) || true) {
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC03 -count=1 -v
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/honest_entry_(baseline)
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/a)_untrusted_signer
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/b)_untrusted_signature,_trusted_keyid_hint
+    c03_entries_test.go:88: log with a bad entry verified OK
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/c)_wrong_payloadType
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/d)_wrong_statement__type
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/e)_statement_without_subject
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/f)_not_JSON
+--- FAIL: TestC03_EntryMustBeTrustedDSSEWithStatement (0.05s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/honest_entry_(baseline) (0.01s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/a)_untrusted_signer (0.00s)
+    --- FAIL: TestC03_EntryMustBeTrustedDSSEWithStatement/b)_untrusted_signature,_trusted_keyid_hint (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/c)_wrong_payloadType (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/d)_wrong_statement__type (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/e)_statement_without_subject (0.01s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/f)_not_JSON (0.02s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.053s
+FAIL

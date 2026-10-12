@@ -1,0 +1,11 @@
+# мутация M9; контроль TestC09
+# изменения (файл | было | стало):
+#   verify/chain.go | bad("%d entries after the freeze point of a planned rotation (old key misuse)", er.Unconfirmed) | _ = er
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC09 -count=1 -v
+=== RUN   TestC09_EntriesAfterFreezeAreUnconfirmedOrError
+    c09_after_freeze_test.go:42: (b) old-key write after a planned rotation: expected a failure containing "after the freeze point of a planned rotation", but the chain verified OK
+--- FAIL: TestC09_EntriesAfterFreezeAreUnconfirmedOrError (0.03s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.029s
+FAIL

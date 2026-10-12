@@ -1,0 +1,11 @@
+# мутация M13; контроль TestC14f
+# изменения (файл | было | стало):
+#   tlog/merkle.go | return append(path(m, leaves[:k]), mth(leaves[k:])) | return append(path(m, leaves[:k]), mth(leaves[:k]))
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14f -count=1 -v
+=== RUN   TestC14f_CTInclusionProofsFromReferenceSource
+    c14_standards_test.go:296: vector (1,8): path element 0 differs from the source
+--- FAIL: TestC14f_CTInclusionProofsFromReferenceSource (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.003s
+FAIL

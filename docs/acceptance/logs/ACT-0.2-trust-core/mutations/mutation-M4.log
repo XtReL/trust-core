@@ -1,0 +1,11 @@
+# мутация M4; контроль TestC04
+# изменения (файл | было | стало):
+#   verify/chain.go | if k.log, err = keys.LoadPublic(e.PublicKey); err != nil { | if k.log, err = keys.LoadPublic(func() string { if _, e2 := os.Stat(filepath.Join(e.Log, "log.pub")); e2 == nil { return filepath.Join(e.Log, "log.pub") }; return e.PublicKey }()); err != nil {
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC04 -count=1 -v
+=== RUN   TestC04_KeysComeOnlyFromTheVerifiersManifest
+    c04_manifest_keys_test.go:45: verifier's own key vs attacker's log: expected a failure containing "no valid signature", but the chain verified OK
+--- FAIL: TestC04_KeysComeOnlyFromTheVerifiersManifest (0.01s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.011s
+FAIL

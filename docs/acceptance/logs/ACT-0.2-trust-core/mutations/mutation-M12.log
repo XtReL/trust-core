@@ -1,0 +1,11 @@
+# мутация M12; контроль TestC14c
+# изменения (файл | было | стало):
+#   tlog/checkpoint.go | h.Write([]byte("\n")) | h.Write([]byte("\r"))
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14c -count=1 -v
+=== RUN   TestC14c_VerifierKeyFromReferenceImplementation
+    c14_standards_test.go:213: our vkey PeterNeumann+ce88db7e+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW differs from the reference implementation's PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW
+--- FAIL: TestC14c_VerifierKeyFromReferenceImplementation (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.008s
+FAIL

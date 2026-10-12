@@ -1,0 +1,11 @@
+# мутация M11; контроль TestC14e
+# изменения (файл | было | стало):
+#   tlog/merkle.go | h.Write([]byte{0x01}) | h.Write([]byte{0x02})
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14e -count=1 -v
+=== RUN   TestC14e_CTRootsFromReferenceSource
+    c14_standards_test.go:252: root of 2 leaves = 2b3ebdff3c96d68d3dae25067215e47edea6f49440b187d3d0c24a692984a6aa, source says fac54203e7cc696cf0dfcb42c92a1d9dbaf70ad9e621f4bd8d98662f00e3c125
+--- FAIL: TestC14e_CTRootsFromReferenceSource (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.003s
+FAIL

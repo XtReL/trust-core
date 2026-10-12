@@ -1,0 +1,11 @@
+# мутация M1; контроль TestC01
+# изменения (файл | было | стало):
+#   verify/verify.go | rep.Problems = append(rep.Problems, "entries on disk do not match the signed checkpoint root (log was modified)") | _ = leaves
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC01 -count=1 -v
+=== RUN   TestC01_TamperedEntryIsDetected
+    c01_tamper_test.go:42: entry 0, one flipped byte: rejected, but without the root-mismatch problem: [entry 0: attest: no valid signature from a trusted key]
+--- FAIL: TestC01_TamperedEntryIsDetected (0.01s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.014s
+FAIL

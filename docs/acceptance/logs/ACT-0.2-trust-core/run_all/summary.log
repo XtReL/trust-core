@@ -1,0 +1,48 @@
+# коммит клона: b9aaeef1541387bd0559951cf79b78bc5a4af597
+# начало: 2026-10-12T07:29:28Z
+## bash acceptance/c13_interop.sh
+C13: все ожидания выполнены
+## go vet ./acceptance/
+## go test ./acceptance/ -count=1 -v
+--- PASS: TestC01_TamperedEntryIsDetected (0.02s)
+--- PASS: TestC02_CheckpointKeyAndOrigin (0.01s)
+--- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement (0.03s)
+--- PASS: TestC04_KeysComeOnlyFromTheVerifiersManifest (0.01s)
+--- PASS: TestC05_PreviousCheckpointDetectsRewrite (0.02s)
+--- PASS: TestC06_PlannedWithoutOldSignatureIsAnError (0.03s)
+--- PASS: TestC07_UnplannedNeedsExactAcceptance (0.02s)
+--- PASS: TestC08_FrozenEpochUsesFreezeCheckpoint (0.02s)
+--- PASS: TestC09_EntriesAfterFreezeAreUnconfirmedOrError (0.03s)
+--- PASS: TestC14a_DSSEPAEExampleFromSpec (0.00s)
+--- PASS: TestC14b_OpenSSLVerifiesOurSignatures (0.03s)
+--- PASS: TestC14c_VerifierKeyFromReferenceImplementation (0.01s)
+--- PASS: TestC14d_CheckpointBodyFormat (0.00s)
+--- PASS: TestC14e_CTRootsFromReferenceSource (0.00s)
+--- PASS: TestC14f_CTInclusionProofsFromReferenceSource (0.00s)
+--- PASS: TestC14g_InTotoStringsFromSpecs (0.00s)
+--- PASS: TestC14s_IndependentRFC6962 (0.06s)
+--- PASS: TestF01_EmptyPreviousDisablesRollbackCheck (0.02s)
+--- PASS: TestF02_OriginOptionalAcceptsClaimedOrigin (0.00s)
+--- PASS: TestF03_StaleLockBlocksAppendForever (0.01s)
+--- PASS: TestF04_RotateDerivesEpochFromOriginSuffix (0.01s)
+--- PASS: TestF09_HugeSignedCheckpointSizeCrashesVerifier (0.33s)
+PASS
+ok  	github.com/XtReL/trust-core/acceptance	0.647s
+## bash acceptance/e01_environment.sh
+E01: все ожидания выполнены
+## bash acceptance/c10_key_mode.sh
+C10: все ожидания выполнены
+## bash acceptance/c11_gitignore.sh
+C11: все ожидания выполнены
+## bash acceptance/c12_backward_compat.sh
+C12: все ожидания выполнены
+## bash acceptance/c15_exit_codes.sh
+C15: all expectations held
+## bash acceptance/s01_no_deps.sh
+S01: все ожидания выполнены
+## bash acceptance/f02_text_findings.sh
+F-text: все ожидания выполнены
+## bash acceptance/p01_red_runs_repro.sh
+P01: все ожидания выполнены
+# конец: 2026-10-12T07:29:34Z
+RUN_ALL: все ожидания акта выполнены

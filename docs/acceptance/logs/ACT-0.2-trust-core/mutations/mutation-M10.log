@@ -1,0 +1,11 @@
+# мутация M10; контроль TestC14a
+# изменения (файл | было | стало):
+#   attest/dsse.go | b.WriteString("DSSEv1 ") | b.WriteString("DSSEv0 ")
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14a -count=1 -v
+=== RUN   TestC14a_DSSEPAEExampleFromSpec
+    c14_standards_test.go:113: PAE("http://example.com/HelloWorld", "hello world") = "DSSEv0 29 http://example.com/HelloWorld 11 hello world", spec says "DSSEv1 29 http://example.com/HelloWorld 11 hello world"
+--- FAIL: TestC14a_DSSEPAEExampleFromSpec (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.004s
+FAIL

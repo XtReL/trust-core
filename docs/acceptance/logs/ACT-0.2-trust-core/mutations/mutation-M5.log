@@ -1,0 +1,11 @@
+# мутация M5; контроль TestC05
+# изменения (файл | было | стало):
+#   verify/verify.go | case tlog.RootFromLeaves(leaves[:prev.Size]) != prev.Root: | case false:
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC05 -count=1 -v
+=== RUN   TestC05_PreviousCheckpointDetectsRewrite
+    c05_previous_test.go:55: (b) rewrite NOT detected with Previous: ok=true problems=[]
+--- FAIL: TestC05_PreviousCheckpointDetectsRewrite (0.02s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.022s
+FAIL

@@ -1,0 +1,11 @@
+# мутация M6; контроль TestC06
+# изменения (файл | было | стало):
+#   verify/chain.go | bad("planned rotation without a valid signature by the epoch %d key", prev.Epoch) | _ = prev
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC06 -count=1 -v
+=== RUN   TestC06_PlannedWithoutOldSignatureIsAnError
+    c06_planned_downgrade_test.go:63: planned genesis signed by the new key only: expected a failure containing "planned rotation without a valid signature", but the chain verified OK
+--- FAIL: TestC06_PlannedWithoutOldSignatureIsAnError (0.02s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.026s
+FAIL

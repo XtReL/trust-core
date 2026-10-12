@@ -1,0 +1,15 @@
+ok    1 verify tampered log: exit 1
+ok    2 verify honest log (baseline): exit 0
+ok    3 verify wrong log key: exit 1
+ok    4 verify wrong origin: exit 1
+ok    5 missing required flag: exit 2
+ok    6 unknown command: exit 2
+ok    7 undefined flag: exit 2
+ok    8 unreadable -log-pub: exit 2
+ok    9 malformed manifest: exit 2
+ok    10 verify-chain honest: exit 0
+ok    11 verify-chain tampered: exit 1
+ok    12 verify-entry honest: exit 0
+ok    13 verify-entry wrong entry: exit 1
+ok    D1 verify, nonexistent -log dir (observed defect: 1, README.md:45 and main.go:4 imply 2): exit 1
+C15: all expectations held

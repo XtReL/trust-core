@@ -1,0 +1,11 @@
+# мутация M15; контроль TestC14d
+# изменения (файл | было | стало):
+#   tlog/checkpoint.go | "%s\n%d\n%s\n" | "%s\n%d\n%s"
+# коммит исходного дерева: b9aaeef1541387bd0559951cf79b78bc5a4af597
+$ go test ./acceptance/ -run TestC14d -count=1 -v
+=== RUN   TestC14d_CheckpointBodyFormat
+    c14_standards_test.go:228: checkpoint body "acceptance.invalid/log\n42\nPH6byTDck/AfppmF7yQtn56GHzxTVaokzl70tLinDMs=", want "acceptance.invalid/log\n42\nPH6byTDck/AfppmF7yQtn56GHzxTVaokzl70tLinDMs=\n"
+--- FAIL: TestC14d_CheckpointBodyFormat (0.00s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.006s
+FAIL
