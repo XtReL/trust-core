@@ -1,0 +1,62 @@
+# scripts/check.sh на копии ветки approval/act-0.2 (HEAD d78a8b7 + новые выводы part2), прогон С МОДУЛЕМ, 2026-10-12T11:01:27Z
+# go version go1.24.7 linux/amd64; gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0; GOTOOLCHAIN=local; GOPROXY=off — только кэш, где лежит лишь golang.org/x/mod@v0.22.0 (проверен по sum.golang.org, см. part2/module-download.net.out); GOSUMDB=sum.golang.org
+== job: test ==
+-- gofmt --
+-- vet --
+-- test --
+?   	github.com/XtReL/trust-core	[no test files]
+ok  	github.com/XtReL/trust-core/attest	1.027s
+?   	github.com/XtReL/trust-core/cmd/trustcore	[no test files]
+ok  	github.com/XtReL/trust-core/event	1.028s
+ok  	github.com/XtReL/trust-core/keys	1.032s
+ok  	github.com/XtReL/trust-core/rotate	1.204s
+ok  	github.com/XtReL/trust-core/tlog	1.252s
+?   	github.com/XtReL/trust-core/tlog/filelog	[no test files]
+ok  	github.com/XtReL/trust-core/verify	2.241s
+-- end-to-end demo --
+== 1. keys: log operator + attester (scanner)
+key id:   0b99b09a89814903c23a390452ad1d64fcd8e1023388ac102e37365d91dc80c6
+private:  /tmp/tmp.gLjouK9paN/log.key  (never commit this)
+public:   /tmp/tmp.gLjouK9paN/log.pub
+vkey:     trust.example.com/demo/gatekeeper+269e62b3+ActqtxuB2pioDB31AlXgPuA/m7+c0wUvdNSeH3IC8obJ
+== 2. empty log
+initialised empty log trust.example.com/demo/gatekeeper at /tmp/tmp.gLjouK9paN/tlog
+== 3. two scans recorded; the client keeps this checkpoint
+== 4. one more scan, then full verification against the kept checkpoint
+log:       trust.example.com/demo/gatekeeper
+size:      3
+root:      2QUwCaH3Ide0WRGQYJnaOhuyK5phzZp247KjmVsGHvw=
+history:   first 2 entries match the previous checkpoint
+OK: checkpoint signature, Merkle root and all entry signatures verified
+== 5. single-entry proof (client holds only entry 1)
+OK: entry 1 is included in the log at size 3
+== 6. planned key rotation: epoch 2 with a new log key (ADR 0002)
+rotation: planned
+epoch:    2
+origin:   trust.example.com/demo/gatekeeper/e2
+key id:   8e549c5a05379a8fbedf06499f58d7a595d488db880361abcebf2b14ac8d4ce5
+vkey:     trust.example.com/demo/gatekeeper/e2+cd8fb1ba+AYfRDnnLBYSziwzMfU5H12nkLfd7KjKfirWWHXK8PtUn
+frozen:   trust.example.com/demo/gatekeeper at size 3
+== 7. verify the chain with the verifier's own manifest
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root 2QUwCaH3Ide0WRGQYJnaOhuyK5phzZp247KjmVsGHvw=  frozen  ok
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root l9lzF76E2X+G03G9/20DIvwb1hHCc6CeEPxUsP6fJ18=  (planned rotation)  ok
+OK: every epoch verified and linked by its genesis
+== 8. the old key keeps writing to the frozen epoch: rejected
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root 2QUwCaH3Ide0WRGQYJnaOhuyK5phzZp247KjmVsGHvw=  frozen  FAILED
+  current checkpoint size 4 (not authoritative for a frozen epoch)
+  warning: 1 entry(ies) after the freeze point are NOT confirmed: [3]
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root l9lzF76E2X+G03G9/20DIvwb1hHCc6CeEPxUsP6fJ18=  (planned rotation)  ok
+old-key misuse detected (expected)
+== 9. tamper: add one space to entry 0
+log:       trust.example.com/demo/gatekeeper
+size:      3
+root:      2QUwCaH3Ide0WRGQYJnaOhuyK5phzZp247KjmVsGHvw=
+epoch 1:  trust.example.com/demo/gatekeeper  size 3  root 2QUwCaH3Ide0WRGQYJnaOhuyK5phzZp247KjmVsGHvw=  frozen  FAILED
+epoch 2:  trust.example.com/demo/gatekeeper/e2  size 2  root l9lzF76E2X+G03G9/20DIvwb1hHCc6CeEPxUsP6fJ18=  (planned rotation)  ok
+tampering detected (expected)
+DEMO PASSED
+== job: interop ==
+-- reference implementations (golang.org/x/mod/sumdb) --
+ok  	github.com/XtReL/trust-core/interop	0.214s
+check: OK
+# exit: 0

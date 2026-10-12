@@ -1,0 +1,54 @@
+# run_all.sh из docs/acceptance/controls/ACT-0.2-trust-core (origin/acceptance/act-v0 @ 364720013cdb659e60e737e72f3753fdf02585cf), прогон С МОДУЛЕМ
+# копия объекта: git clone f419b0d1693e6d3c06b7effa813239d129f31d6d (main), контроли и reference положены неотслеживаемыми файлами
+# окружение: go version go1.24.7 linux/amd64; openssl: OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+# golang.org/x/mod@v0.22.0 заранее загружен в кэш с проверкой по sum.golang.org (module-download.net.out);
+# прогон с GOPROXY=off: только кэш, никакие другие модули загружаться не могут; GOSUMDB=sum.golang.org
+# коммит клона: f419b0d1693e6d3c06b7effa813239d129f31d6d
+# начало: 2026-10-12T11:01:01Z
+## bash acceptance/c13_interop.sh
+C13: все ожидания выполнены
+## go vet ./acceptance/
+## go test ./acceptance/ -count=1 -v
+--- PASS: TestC01_TamperedEntryIsDetected (0.02s)
+--- PASS: TestC02_CheckpointKeyAndOrigin (0.01s)
+--- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement (0.03s)
+--- PASS: TestC04_KeysComeOnlyFromTheVerifiersManifest (0.01s)
+--- PASS: TestC05_PreviousCheckpointDetectsRewrite (0.02s)
+--- PASS: TestC06_PlannedWithoutOldSignatureIsAnError (0.04s)
+--- PASS: TestC07_UnplannedNeedsExactAcceptance (0.02s)
+--- PASS: TestC08_FrozenEpochUsesFreezeCheckpoint (0.02s)
+--- PASS: TestC09_EntriesAfterFreezeAreUnconfirmedOrError (0.04s)
+--- PASS: TestC14a_DSSEPAEExampleFromSpec (0.00s)
+--- PASS: TestC14b_OpenSSLVerifiesOurSignatures (0.03s)
+--- PASS: TestC14c_VerifierKeyFromReferenceImplementation (0.00s)
+--- PASS: TestC14d_CheckpointBodyFormat (0.00s)
+--- PASS: TestC14e_CTRootsFromReferenceSource (0.00s)
+--- PASS: TestC14f_CTInclusionProofsFromReferenceSource (0.00s)
+--- PASS: TestC14g_InTotoStringsFromSpecs (0.00s)
+--- PASS: TestC14s_IndependentRFC6962 (0.08s)
+--- PASS: TestF01_EmptyPreviousDisablesRollbackCheck (0.03s)
+--- PASS: TestF02_OriginOptionalAcceptsClaimedOrigin (0.00s)
+--- PASS: TestF03_StaleLockBlocksAppendForever (0.00s)
+--- PASS: TestF04_RotateDerivesEpochFromOriginSuffix (0.01s)
+--- PASS: TestF09_HugeSignedCheckpointSizeCrashesVerifier (0.46s)
+PASS
+ok  	github.com/XtReL/trust-core/acceptance	0.841s
+## bash acceptance/e01_environment.sh
+E01: все ожидания выполнены
+## bash acceptance/c10_key_mode.sh
+C10: все ожидания выполнены
+## bash acceptance/c11_gitignore.sh
+C11: все ожидания выполнены
+## bash acceptance/c12_backward_compat.sh
+C12: все ожидания выполнены
+## bash acceptance/c15_exit_codes.sh
+C15: all expectations held
+## bash acceptance/s01_no_deps.sh
+S01: все ожидания выполнены
+## bash acceptance/f02_text_findings.sh
+F-text: все ожидания выполнены
+## bash acceptance/p01_red_runs_repro.sh
+P01: все ожидания выполнены
+# конец: 2026-10-12T11:01:13Z
+RUN_ALL: все ожидания акта выполнены
+# exit: 0

@@ -1,4 +1,5 @@
-5f32caf68f993613da72a6bd435e407dfcc08556df89cb7a28dedeca7869db5e  ./README.md
+2be4c648d1bb16464789924192b7c9fb6e747167a62a0721abc57eb847cb2a9f  ./README.md
+f0f7aa009a0c8e1cdbd5e354b8dede9c4c35c3850c64d65ca897f4e8b28d5335  ./check.sh.net.out
 5e5f60264a20c43c9114543d40b6fc71f81b3dbc02144035ab75fa9f0fea7498  ./check.sh.out
 3f6b97e067e4f973593dbbb56d5e4b6a8f50d3fb1a13ba5af967bdbce9f2f13f  ./part1/EXPECTED.md
 a41b3d824cb5b79c185bed759e31d037e20e54e6e8eb142f53a853a0c50a2698  ./part1/RESULTS.md
@@ -10,7 +11,18 @@ ecaf0e2cd556d95cc8650eb91253061b2e360d6f1363beb3f63662377de29337  ./part1/out/q3
 f31b523d1b9b7100ac4be09d8c937bad6116e1782483f70c0a2b6fa6ec5428d2  ./part1/q2_rewrite.sh
 cec41c4676d1b4eb2ccd3ffe747db6cb589d8acdd307a0902559acdfba969082  ./part1/q3_exit_codes.sh
 2a8048cf47422195e91e3c49398173e8c0efeb1146cac1ff0c120c0645e52d07  ./part1/run_part1.sh
-fa7426baa8e44f6724888a79b644173657098b071e915d349ddb023e340bde1e  ./part2/RESULTS.md
+70afea3868a43a08a98e752f499e2c6b8b6297d4f435e207550a3884241e5da9  ./part2/RESULTS.md
+203ee2d1a4e5e85d8bff386e11e721555264938da51b8f98df633bae93ec28a3  ./part2/logs-net/c10_key_mode.log
+b03385f00f0452843119abf75a4b8505df28993f8f4883afc052b228953e6faf  ./part2/logs-net/c11_gitignore.log
+5a39ea744d1a601b6bef3697666eeab9d53c55a68d808918b97cc10885fde619  ./part2/logs-net/c12_backward_compat.log
+253e73ae57e7014c4ac61fb6ff8ffa204ad9235713c0f8947449443eba12280b  ./part2/logs-net/c13_interop.log
+dd1110a10889048aa0191e665dfca8dc1825d0093b2ac4054634bc4c07b30d47  ./part2/logs-net/c15_exit_codes.log
+93f87cfe9539cc207512aabc10602b421cea8606bfc516d63fa00acae83b77b2  ./part2/logs-net/e01_environment.log
+215c0bacc4848e09c422a8929979d3f94b5a4df7b7caa02bbfd2406f58e68985  ./part2/logs-net/f02_text_findings.log
+86ce5c97e6cecb5f43c1aeb8b92aebee6a5f05b3e84403236a5dc92ebdef5b2b  ./part2/logs-net/go-test.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./part2/logs-net/go-vet.log
+955e83031080ba4fefd37d7506b12e0c08fe29b6a2bca8f49f7f39b462dea7e3  ./part2/logs-net/p01_red_runs_repro.log
+1924ab2aa2f9d5bf1b0ad1d0f096e5d78c705f549e25851f9f85ec9a37511f98  ./part2/logs-net/s01_no_deps.log
 203ee2d1a4e5e85d8bff386e11e721555264938da51b8f98df633bae93ec28a3  ./part2/logs/c10_key_mode.log
 879154618135ded645f2e485bb24402bbc28ec2c48fb7c7a1be3fba9b6fd8bc9  ./part2/logs/c11_gitignore.log
 5a39ea744d1a601b6bef3697666eeab9d53c55a68d808918b97cc10885fde619  ./part2/logs/c12_backward_compat.log
@@ -22,5 +34,8 @@ be4dccd05ba87a782f9ec197e89b29fcc99a98f6d982fbb383157c5e7734a157  ./part2/logs/g
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./part2/logs/go-vet.log
 955e83031080ba4fefd37d7506b12e0c08fe29b6a2bca8f49f7f39b462dea7e3  ./part2/logs/p01_red_runs_repro.log
 1924ab2aa2f9d5bf1b0ad1d0f096e5d78c705f549e25851f9f85ec9a37511f98  ./part2/logs/s01_no_deps.log
+41b62f650782173956985b51e22962e502648f17d6e05bb727f7adbe05ce17e1  ./part2/module-download.net.out
+9abd142130b9b410182899034e369d88d37d24171691c117978db90f2cb97135  ./part2/run_all.net.out
 0bcea20636b08fe54429beec07515e1d248025f55bf3214e84bda393d75fba0b  ./part2/run_all.out
+8579d652a0a1844995e0b0936a92ad7c2bd8af9ca612423a2def89dae33cd8c6  ./part2/sha256-check.net.out
 b142c667357b5730f5246b4623c555941cc5e4ba91b3c993bf14df571749bc62  ./part2/sha256-check.out

@@ -14,8 +14,10 @@
 | 1 | Q3: коды выхода | нет `-log` → **1** (`VERIFICATION FAILED: open .../checkpoint`), нет `-log-pub` → **2**; с README (`2 — ошибка использования`) совпадает только второй случай |
 | 1 | Собственные контроли | 3/3, код 0; 45/45 утверждений совпали с записанными заранее ожиданиями |
 | 2 | sha256 контролей | 24/24 OK (+ 9/9 `reference/`) |
-| 2 | `run_all.sh` | код 1: c13 = 3, TestC14c FAIL, E01 — 1 ожидание; все три — нет модуля `golang.org/x/mod` (офлайн), остальное зелёное |
-| — | `scripts/check.sh` | код 1: `test` прошёл, `interop` упал по той же причине (офлайн) |
+| 2 | `run_all.sh`, офлайн | код 1: c13 = 3, TestC14c FAIL, E01 — 1 ожидание; все три — нет модуля `golang.org/x/mod`, остальное зелёное |
+| 2 | `run_all.sh` с `golang.org/x/mod@v0.22.0` | **код 0**, «RUN_ALL: все ожидания акта выполнены» |
+| — | `scripts/check.sh`, офлайн | код 1: `test` прошёл, `interop` упал по той же причине |
+| — | `scripts/check.sh` с модулем | **код 0**, `check: OK` |
 
 Подробно: `part1/EXPECTED.md`, `part1/RESULTS.md`, `part2/RESULTS.md`.
 
@@ -30,7 +32,12 @@ part2/sha256-check.out     сверка с docs/acceptance/MANIFEST.sha256 (acce
 part2/run_all.out          сводка run_all.sh
 part2/logs/*.log           полный вывод каждого прогона run_all.sh (LOGDIR)
 part2/RESULTS.md           разбор
-check.sh.out               полный вывод scripts/check.sh
+check.sh.out               полный вывод scripts/check.sh (офлайн)
+part2/module-download.net.out   загрузка golang.org/x/mod@v0.22.0 (-x: все HTTP-запросы) и сверка с sum.golang.org
+part2/sha256-check.net.out повторная сверка контролей перед прогоном с модулем
+part2/run_all.net.out      сводка run_all.sh с модулем
+part2/logs-net/*.log       полный вывод каждого прогона run_all.sh с модулем
+check.sh.net.out           полный вывод scripts/check.sh с модулем
 MANIFEST.sha256            sha256 всех файлов этого каталога, кроме себя
 ```
 
@@ -39,9 +46,12 @@ MANIFEST.sha256            sha256 всех файлов этого катало�
 ## Окружение
 
 Linux, go1.24.7 linux/amd64 (`GOTOOLCHAIN=local`, toolchain не загружался),
-gcc 13.3.0, OpenSSL 3.0.13. Кэш модулей Go пуст; сеть для модулей задание
-не разрешает, поэтому части 2 и check.sh запускались с `GOPROXY=off`.
-Сеть не использовалась, кроме git fetch/push с origin.
+gcc 13.3.0, OpenSSL 3.0.13. Первый прогон части 2 и check.sh: кэш модулей
+Go пуст, сеть для модулей не разрешена, `GOPROXY=off`. Второй прогон: по
+разрешению пользователя загружен только `golang.org/x/mod@v0.22.0` через
+proxy.golang.org с проверкой по sum.golang.org, после чего `run_all.sh` и
+check.sh снова запускались с `GOPROXY=off` (только кэш). Других сетевых
+обращений не было, кроме git fetch/push с origin.
 
 ## Открытые файлы
 
@@ -82,6 +92,12 @@ gcc 13.3.0, OpenSSL 3.0.13. Кэш модулей Go пуст; сеть для �
 
 Не открывались вовсе: `docs/acceptance/ACT-0.2-trust-core.md` (акт),
 `docs/acceptance/logs/**` и прочие файлы ветки `acceptance/act-v0`.
+
+Дополнительно при прогоне с модулем: `interop/go.mod` объекта (`git show
+f419b0d:interop/go.mod`, целиком); `go.mod` модуля `golang.org/x/mod@v0.22.0`
+из кэша и запись sum.golang.org для него (целиком, в
+`part2/module-download.net.out`); `part2/logs-net/c13_interop.log` (строки
+1–40 и grep); `part2/run_all.net.out`, `check.sh.net.out` (целиком).
 
 Собственный вывод части 2: `part2/run_all.out`, `check.sh.out`,
 `part2/sha256-check.out` (целиком); `part2/logs/c13_interop.log` (целиком);

@@ -1,0 +1,87 @@
+# загрузка модуля, разрешённая пользователем: только golang.org/x/mod@v0.22.0, через прокси Go, с проверкой по sum.golang.org
+# 2026-10-12T11:00:31Z; go version go1.24.7 linux/amd64; каталог без go.mod: /tmp/tmp.omCzmHfzZe
+# кэш до загрузки:
+#   /root/go/pkg/mod/cache/download/golang.org/x/mod/@v/v0.22.0.lock
+$ GOTOOLCHAIN=local GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GONOSUMDB= GONOSUMCHECK= GOPRIVATE= GOINSECURE= GOFLAGS= go mod download -x -json golang.org/x/mod@v0.22.0
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.info
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.info: 200 OK (0.064s)
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.mod
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.mod: 200 OK (0.005s)
+# get https://proxy.golang.org/sumdb/sum.golang.org/supported
+# get https://proxy.golang.org/sumdb/sum.golang.org/supported: 404 Not Found (0.020s)
+# get https://sum.golang.org/lookup/golang.org/x/mod@v0.22.0
+# get https://sum.golang.org/lookup/golang.org/x/mod@v0.22.0: 200 OK (0.520s)
+# get https://sum.golang.org/tile/8/0/x123/009
+# get https://sum.golang.org/tile/8/1/x001/045.p/112
+# get https://sum.golang.org/tile/8/1/480
+# get https://sum.golang.org/tile/8/3/000.p/4
+# get https://sum.golang.org/tile/8/0/x267/632.p/8
+# get https://sum.golang.org/tile/8/2/001
+# get https://sum.golang.org/tile/8/2/004.p/21
+# get https://sum.golang.org/tile/8/2/004.p/21: 200 OK (0.034s)
+# get https://sum.golang.org/tile/8/0/x123/009: 200 OK (0.058s)
+# get https://sum.golang.org/tile/8/1/480: 200 OK (0.217s)
+# get https://sum.golang.org/tile/8/2/001: 200 OK (0.217s)
+# get https://sum.golang.org/tile/8/0/x267/632.p/8: 200 OK (0.217s)
+# get https://sum.golang.org/tile/8/3/000.p/4: 200 OK (0.217s)
+# get https://sum.golang.org/tile/8/1/x001/045.p/112: 200 OK (0.218s)
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.zip
+# get https://proxy.golang.org/golang.org/x/mod/@v/v0.22.0.zip: 200 OK (0.011s)
+{
+	"Path": "golang.org/x/mod",
+	"Version": "v0.22.0",
+	"Info": "/root/go/pkg/mod/cache/download/golang.org/x/mod/@v/v0.22.0.info",
+	"GoMod": "/root/go/pkg/mod/cache/download/golang.org/x/mod/@v/v0.22.0.mod",
+	"Zip": "/root/go/pkg/mod/cache/download/golang.org/x/mod/@v/v0.22.0.zip",
+	"Dir": "/root/go/pkg/mod/golang.org/x/mod@v0.22.0",
+	"Sum": "h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=",
+	"GoModSum": "h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=",
+	"Origin": {
+		"VCS": "git",
+		"URL": "https://go.googlesource.com/mod",
+		"Hash": "dec0365065b75edd0e98b0306f6f9b0051710ed2",
+		"Ref": "refs/tags/v0.22.0"
+	}
+}
+# exit: 0
+# кэш после загрузки (модули, без каталога sumdb):
+#   cache/download/golang.org/x/mod/@v/v0.22.0.zip
+#   cache/download/golang.org/x/mod/@v/v0.22.0.info
+#   cache/download/golang.org/x/mod/@v/list
+#   cache/download/golang.org/x/mod/@v/v0.22.0.mod
+#   cache/download/golang.org/x/mod/@v/v0.22.0.ziphash
+#   cache/download/golang.org/x/mod/@v/v0.22.0.lock
+# извлечённые модули:
+#   /root/go/pkg/mod/golang.org/x/mod@v0.22.0
+# записи sumdb в кэше:
+#   cache/download/sumdb/sum.golang.org/lookup/golang.org/x/mod@v0.22.0
+#   cache/download/sumdb/sum.golang.org/tile/8/3/000.p/4
+#   cache/download/sumdb/sum.golang.org/tile/8/2/001
+#   cache/download/sumdb/sum.golang.org/tile/8/2/004.p/21
+#   cache/download/sumdb/sum.golang.org/tile/8/0/x123/009
+#   cache/download/sumdb/sum.golang.org/tile/8/0/x267/632.p/8
+#   cache/download/sumdb/sum.golang.org/tile/8/1/x001/045.p/112
+#   cache/download/sumdb/sum.golang.org/tile/8/1/480
+
+# сверка: запись sum.golang.org из кэша против Sum/GoModSum выше
+$ cat cache/download/sumdb/sum.golang.org/lookup/golang.org/x/mod@v0.22.0
+31490473
+golang.org/x/mod v0.22.0 h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
+golang.org/x/mod v0.22.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
+
+go.sum database tree
+68513800
+4F6fcDtSS//CKiRrg4ecEYBo8eolW0mOeSioDTAmt9w=
+
+— sum.golang.org Az3grnUMEN9lrf1eBgaVlT/gPjDj8bYwcpcazsZHAtIT1D9ER0LcrHBCDz79tLElqiZdOMFQgumYD1ubc7ol2gGDNQc=
+# OK: обе строки h1 совпадают с подписанной записью sumdb
+$ cat cache/download/golang.org/x/mod/@v/v0.22.0.ziphash
+h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
+$ cat cache/download/golang.org/x/mod/@v/v0.22.0.mod
+module golang.org/x/mod
+
+go 1.22.0
+
+require golang.org/x/tools v0.13.0 // tagx:ignore
+$ sha256sum v0.22.0.zip
+0d0a96054b32dfa40cec2a2868bf87cdda31e3bb2dac0a5e2218efe3ef3ef3cc  cache/download/golang.org/x/mod/@v/v0.22.0.zip
