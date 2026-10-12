@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Контроль З14. README.md:3 — «Zero dependencies, Go standard library only.»
+# Дополнительный контроль S01 (в счёт заявлений не входит). README.md:3 — «Zero dependencies, Go standard library only.»
 # (ядро = корневой модуль; interop/ — отдельный модуль и в заявление не входит).
 # Поиск: `go list -deps -test` по всем пакетам корневого модуля, вывод —
 # модули всех нестандартных пакетов. Ожидание: ровно один модуль — сам
@@ -7,7 +7,7 @@
 # Подложено (во временной копии): локальный модуль example.com/ext, подключённый
 # через require+replace и импортированный новым пакетом plant/ — тот же
 # поиск обязан показать example.com/ext (иначе «0 внешних» ничего не значит).
-# Сеть не нужна. Запуск из корня временной копии: bash acceptance/c14_no_deps.sh
+# Сеть не нужна. Запуск из корня временной копии: bash acceptance/s01_no_deps.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN="${GOTOOLCHAIN:-local}" GOFLAGS="${GOFLAGS:--mod=readonly}" GOPROXY=off
@@ -31,4 +31,4 @@ planted="$(cd "$W/copy" && modules)"
 expect "(контроль способности) тот же поиск находит подложенный example.com/ext" 1 "$(printf '%s' "$planted" | grep -c 'example.com/ext')"
 expect "(контроль способности) go.mod-поиск require видит подложенный require" 1 "$(grep -c -E '^\s*require\b' "$W/copy/go.mod")"
 
-[ "$fails" -eq 0 ] && echo "C14: все ожидания выполнены" || { echo "C14: не выполнено ожиданий: $fails"; exit 1; }
+[ "$fails" -eq 0 ] && echo "S01: все ожидания выполнены" || { echo "S01: не выполнено ожиданий: $fails"; exit 1; }

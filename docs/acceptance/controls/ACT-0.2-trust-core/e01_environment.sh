@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Контроль окружения акта (шапка, «Окружение»): подтверждает утверждения
-# «автозагрузок toolchain: 0» и «загрузок модулей Go: 0».
+# «автозагрузок toolchain: 0» и «загружен только модуль из interop/go.mod».
 #   1. go.mod и interop/go.mod: директива go не выше установленного toolchain,
 #      директивы toolchain нет — при GOTOOLCHAIN=auto загрузка не потребовалась бы;
 #   2. подложено: копия с `go 1.99` при GOTOOLCHAIN=local — та же команда
 #      `go list` обязана сообщить, что нужен более новый toolchain (то есть
 #      требование к toolchain обнаруживается, а не «молча 0»);
-#   3. нет каталога toolchain в кэше модулей, и в кэше нет файлов модулей
-#      (файлы *.lock, создаваемые заблокированной попыткой, не считаются);
-#      подложено: файл во временном кэше тот же поиск находит.
+#   3. нет каталога toolchain в кэше модулей; извлечённые модули — ровно
+#      golang.org/x/mod@v0.22.0 (версия из interop/go.mod; загрузка разрешена
+#      владельцем для З13); подложено: два модуля во временном кэше тот же
+#      поиск находит.
 # Сеть не нужна. Запуск (из корня временной копии): bash acceptance/e01_environment.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -29,10 +30,11 @@ out="$(cd "$W/plant" && GOTOOLCHAIN=local go list ./... 2>&1)"
 echo "$out" | grep -q -E 'requires go >= 1\.99'; expect "(контроль способности) требование go 1.99 при GOTOOLCHAIN=local обнаружено" 0 $?
 
 cache="$(GOTOOLCHAIN=local go env GOMODCACHE)"
-mods() { find "$1" -type f ! -name '*.lock' 2>/dev/null | wc -l | tr -d ' '; }
-expect "файлов модулей в кэше $cache (без *.lock)" 0 "$(mods "$cache")"
+# извлечённые модули: каталоги вида <путь>@<версия> вне cache/ в кэше модулей
+mods() { (cd "$1" 2>/dev/null && find . -path ./cache -prune -o -type d -name '*@v*' -print | sed 's|^\./||' | sort | tr '\n' ' '); }
+expect "извлечённые модули в кэше $cache (сеть использована только для них; версия из interop/go.mod)" "golang.org/x/mod@v0.22.0 " "$(mods "$cache")"
 expect "каталогов golang.org/toolchain* в кэше" 0 "$(find "$cache" -maxdepth 2 -name 'toolchain*' 2>/dev/null | wc -l | tr -d ' ')"
-mkdir -p "$W/fakecache/golang.org/x/mod@v0.0.0" && : > "$W/fakecache/golang.org/x/mod@v0.0.0/go.mod"
-expect "(контроль способности) подложенный файл модуля тем же поиском найден" 1 "$(mods "$W/fakecache")"
+mkdir -p "$W/fakecache/golang.org/x/mod@v0.0.0" "$W/fakecache/example.com/y@v1.0.0"
+expect "(контроль способности) подложенные модули тем же поиском найдены" "example.com/y@v1.0.0 golang.org/x/mod@v0.0.0 " "$(mods "$W/fakecache")"
 
 [ "$fails" -eq 0 ] && echo "E01: все ожидания выполнены" || { echo "E01: не выполнено ожиданий: $fails"; exit 1; }

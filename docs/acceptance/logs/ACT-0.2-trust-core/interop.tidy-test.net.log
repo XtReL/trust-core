@@ -1,0 +1,17 @@
+# начало 2026-10-12T07:18:46Z
+# каталог: временная копия git archive HEAD, interop/ (replace ../ указывает на корень копии)
+# env: GOTOOLCHAIN=local GOFLAGS=-mod=readonly GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
+$ go mod tidy
+# код выхода go mod tidy: 0
+$ go test -count=1 -v ./...
+=== RUN   TestOurNoteOpensWithReference
+    interop_test.go:33: reference verified note, 1 sig(s)
+--- PASS: TestOurNoteOpensWithReference (0.00s)
+=== RUN   TestReferenceNoteOpensWithOurs
+--- PASS: TestReferenceNoteOpensWithOurs (0.00s)
+=== RUN   TestMerkleMatchesReference
+--- PASS: TestMerkleMatchesReference (0.16s)
+PASS
+ok  	github.com/XtReL/trust-core/interop	0.162s
+# код выхода go test: 0
+# конец 2026-10-12T07:18:46Z

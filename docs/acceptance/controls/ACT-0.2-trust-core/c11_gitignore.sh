@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# Контроль З10. README.md:122 — «Приватные ключи (*.key) исключены через
-# .gitignore и создаются с правами 0600. Никогда не коммитьте их».
-# Проверяет три вещи, каждую с подложенным положительным случаем:
-#   1. keygen создаёт *.key с правами 600 (в том числе при umask 000);
-#   2. .gitignore игнорирует *.key (git check-ignore); подложенный
-#      не-ключевой файл (*.pem) НЕ игнорируется — поиск способен отвечать «нет»;
-#   3. в репозитории (все коммиты всех веток) нет приватных ключей:
-#      (а) нет файлов *.key, (б) нет заголовка PEM PRIVATE KEY, (в) нет
-#      тела ключа Ed25519 PKCS#8 (21-символьный base64-префикс DER; сам префикс в этом
-#      файле разбит на части, чтобы скрипт не находил сам себя в истории).
-#      Подложено: во временном клоне закоммитирован сгенерированный
-#      одноразовый ключ в файл leaked.txt — тот же поиск обязан его найти.
+# Контроль З11. README.md:122 — «Приватные ключи (`*.key`) исключены через
+# `.gitignore` ...» (вторая половина строки; права 0600 — З10, способ Прогон).
+# Способ: Текст — сравнение имён файлов с шаблонами `.gitignore` (git check-ignore)
+# и поиск по тексту репозитория и его истории.
+#   1. `.gitignore` игнорирует *.key (git check-ignore); подложенный
+#      не-ключевой файл (*.pem) НЕ игнорируется — поиск способен ответить «нет»;
+#   2. ДОПОЛНИТЕЛЬНО (в формулировку заявления не входит; предписание
+#      «Никогда не коммитьте» — не заявление): в репозитории (все коммиты всех
+#      веток) нет приватных ключей: (а) нет файлов *.key, (б) нет заголовка PEM
+#      приватного ключа, (в) нет тела ключа Ed25519 PKCS#8 (21-символьный
+#      base64-префикс DER; сам префикс в этом файле разбит на части, чтобы
+#      скрипт не находил сам себя в истории). Подложено: во временном клоне
+#      закоммитирован сгенерированный одноразовый ключ в файл leaked.txt —
+#      тот же поиск обязан его найти.
 # Секреты не выводятся: только rev:путь:строка, длина и энтропия
 # (бит/символ) совпавшего токена.
 # Нужен git-клон. Запуск из корня временного клона:
-#   bash acceptance/c10_private_keys.sh
+#   bash acceptance/c11_gitignore.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN="${GOTOOLCHAIN:-local}" GOFLAGS="${GOFLAGS:--mod=readonly}"
@@ -24,18 +26,11 @@ expect() { if [ "$3" = "$2" ]; then echo "ok    $1"; else echo "FAIL  $1: ожи
 
 go build -o "$W/tc" ./cmd/trustcore || exit 1
 
-# 1. права на файл ключа
-for um in 000 022; do
-  (umask $um; mkdir -p "$W/k$um" && cd "$W/k$um" && "$W/tc" keygen -out k >/dev/null)
-  expect "права k.key при umask $um" 600 "$(stat -c %a "$W/k$um/k.key")"
-done
-(cd "$W/k000" && "$W/tc" keygen -out k >/dev/null 2>&1); expect "keygen не перезаписывает существующий ключ (код != 0)" 0 $([ $? -ne 0 ]; echo $?)
-
-# 2. .gitignore
+# 1. .gitignore
 git check-ignore -q -- keys/log.key; expect ".gitignore игнорирует keys/log.key" 0 $?
 git check-ignore -q -- keys/log.pem; expect "(контроль способности) .gitignore НЕ игнорирует keys/log.pem" 1 $?
 
-# 3. поиск приватных ключей по всей истории
+# 2. (дополнительно) поиск приватных ключей по всей истории
 scan() { # каталог-клон; печатает только rev:путь:строка, длину и энтропию
   ( cd "$1" && { git rev-list --all | while read -r rev; do
       git grep -I -n -o -E -e '-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----' -e 'MC4CAQAw''BQYDK2Vw''BCIEI' "$rev" -- 2>/dev/null
@@ -77,7 +72,7 @@ real="$(scan "$R")"
 expect "в реальной истории нет приватных ключей и файлов *.key (число находок)" 0 "$(printf '%s' "$real" | grep -c '^hit')"
 
 git clone --quiet "$R" "$W/planted" || exit 1
-( cd "$W/k000" && cp k.key "$W/planted/leaked.txt" )
+mkdir -p "$W/gen" && ( cd "$W/gen" && "$W/tc" keygen -out k >/dev/null && cp k.key "$W/planted/leaked.txt" )
 ( cd "$W/planted" && git add leaked.txt && git -c user.name=acc -c user.email=acc@example.invalid commit -q -m "planted one-off test key" )
 hits="$(scan "$W/planted")"
 echo "--- подложенный случай (только путь:строка, длина, энтропия):"; echo "$hits"
@@ -86,4 +81,4 @@ expect "(контроль способности) тот же поиск нах�
 ( cd "$W/planted" && git mv leaked.txt planted.key 2>/dev/null; git -c user.name=acc -c user.email=acc@example.invalid commit -q -am "rename to .key" 2>/dev/null; true )
 expect "(контроль способности) отслеживаемый/исторический *.key находится" 1 "$(scan "$W/planted" | grep -c 'kind=tracked-\*\.key')"
 
-[ "$fails" -eq 0 ] && echo "C10: все ожидания выполнены" || { echo "C10: не выполнено ожиданий: $fails"; exit 1; }
+[ "$fails" -eq 0 ] && echo "C11: все ожидания выполнены" || { echo "C11: не выполнено ожиданий: $fails"; exit 1; }

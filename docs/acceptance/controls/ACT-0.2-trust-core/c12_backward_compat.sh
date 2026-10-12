@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Контроль З11. docs/adr/0002-key-rotation.md:75-77 — «Существующий журнал =
+# Контроль З12. docs/adr/0002-key-rotation.md:75-77 — «Существующий журнал =
 # эпоха 1; verify.Log, trustcore verify и формат на диске не меняются.»
 # (+ CLAUDE.md: журналы прежних версий проверяются новой версией — это
 # правило, а не доказательство; доказательством служит прогон ниже.)
@@ -16,7 +16,7 @@
 #      бинарником (3 записи, ключ журнала = ключ аттестатора);
 #   4. контроль способности: подмена в старом журнале → новый verify даёт 1.
 # Требуется git-клон (нужна история): запуск из корня временного клона:
-#   bash acceptance/c11_backward_compat.sh
+#   bash acceptance/c12_backward_compat.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export GOTOOLCHAIN="${GOTOOLCHAIN:-local}" GOFLAGS="${GOFLAGS:--mod=readonly}"
@@ -76,4 +76,4 @@ expect "новый verify-chain: фикстура" 0 "$(rc "$NEW" verify-chain -
 printf ' ' >> lg-old/entries/00000000000000000000.json
 expect "(контроль способности) подмена в старом журнале → новый verify даёт 1" 1 "$(rc "$NEW" verify -log lg-old -origin $O -log-pub log.pub -attester-pub att.pub)"
 
-[ "$fails" -eq 0 ] && echo "C11: все ожидания выполнены" || { echo "C11: не выполнено ожиданий: $fails"; exit 1; }
+[ "$fails" -eq 0 ] && echo "C12: все ожидания выполнены" || { echo "C12: не выполнено ожиданий: $fails"; exit 1; }

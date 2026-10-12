@@ -1,0 +1,22 @@
+2026-10-12T07:19:53Z GET https://raw.githubusercontent.com/transparency-dev/merkle/v0.0.2/testonly/constants.go -> HTTP 200, 4201 bytes -> docs/acceptance/reference/github.com/transparency-dev/merkle@v0.0.2/testonly/constants.go
+2026-10-12T07:19:53Z GET https://raw.githubusercontent.com/transparency-dev/merkle/v0.0.2/proof/verify_test.go -> HTTP 200, 14205 bytes -> docs/acceptance/reference/github.com/transparency-dev/merkle@v0.0.2/proof/verify_test.go
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/secure-systems-lab/dsse/v1.0.0/protocol.md -> HTTP 200, 5180 bytes -> docs/acceptance/reference/github.com/secure-systems-lab/dsse@v1.0.0/protocol.md
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/secure-systems-lab/dsse/v1.0.0/envelope.md -> HTTP 200, 2189 bytes -> docs/acceptance/reference/github.com/secure-systems-lab/dsse@v1.0.0/envelope.md
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/in-toto/attestation/v1.1.0/spec/v1/statement.md -> HTTP 200, 2492 bytes -> docs/acceptance/reference/github.com/in-toto/attestation@v1.1.0/spec/v1/statement.md
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/in-toto/attestation/v1.1.0/spec/v1/envelope.md -> HTTP 200, 2734 bytes -> docs/acceptance/reference/github.com/in-toto/attestation@v1.1.0/spec/v1/envelope.md
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/in-toto/attestation/v1.1.0/spec/predicates/test-result.md -> HTTP 200, 6414 bytes -> docs/acceptance/reference/github.com/in-toto/attestation@v1.1.0/spec/predicates/test-result.md
+2026-10-12T07:19:54Z GET https://raw.githubusercontent.com/C2SP/C2SP/0b976abec7bbb740a128271481cbb013db8fdf13/signed-note.md -> HTTP 200, 7841 bytes -> docs/acceptance/reference/github.com/C2SP/C2SP@0b976abec7bb/signed-note.md
+2026-10-12T07:19:55Z GET https://raw.githubusercontent.com/C2SP/C2SP/0b976abec7bbb740a128271481cbb013db8fdf13/tlog-checkpoint.md -> HTTP 200, 5999 bytes -> docs/acceptance/reference/github.com/C2SP/C2SP@0b976abec7bb/tlog-checkpoint.md
+2026-10-12T07:19:55Z COPY module cache golang.org/x/mod@v0.22.0 (go.sum h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=) sumdb/note/note.go (загружен go mod tidy, раздел З13)
+# 2026-10-12: три файла с расширением .go сохранены с добавленным суффиксом .txt (constants.go.txt, verify_test.go.txt, note.go.txt),
+# чтобы gofmt/go vet/go test корневого модуля репозитория их не подхватывали; содержимое байт в байт то же, что получено.
+2026-10-12T07:24:03Z GET https://raw.githubusercontent.com/transparency-dev/merkle/v0.0.2/proof/verify.go -> HTTP 200, 6383 bytes -> docs/acceptance/reference/github.com/transparency-dev/merkle@v0.0.2/proof/verify.go.txt (суффикс .txt добавлен при сохранении)
+2026-10-12T07:24:04Z GET https://raw.githubusercontent.com/transparency-dev/merkle/v0.0.2/rfc6962/rfc6962.go -> HTTP 200, 1925 bytes -> docs/acceptance/reference/github.com/transparency-dev/merkle@v0.0.2/rfc6962/rfc6962.go.txt (суффикс .txt добавлен при сохранении)
+# 2026-10-12: два последних файла (proof/verify.go, rfc6962/rfc6962.go) скачаны для проверки, есть ли в источнике ссылка на RFC 9162
+# (в них её нет: только «RFC6962»), в акте не использованы и не сохранены.
+# 2026-10-12: тексты RFC 6962 и RFC 9162 получить не удалось: rfc-editor.org, www.ietf.org, datatracker.ietf.org — «CONNECT tunnel failed, response 403»
+# (сеть разрешена только для загрузки эталонных файлов; обход не предпринимался).
+# 2026-10-12T07:18:14Z: три пробы доступности (curl, тело не сохранялось): proxy.golang.org/golang.org/x/mod/@v/v0.22.0.info -> 200;
+#   raw.githubusercontent.com/secure-systems-lab/dsse/master/protocol.md -> 200; www.rfc-editor.org/rfc/rfc6962.txt -> 000 (нет соединения).
+# 2026-10-12, между 07:19:00Z и 07:19:55Z (точное время не записано): git ls-remote https://github.com/C2SP/C2SP refs/heads/main -> 0b976abec7bbb740a128271481cbb013db8fdf13
+#   (закрепление версии C2SP); git ls-remote --tags для secure-systems-lab/dsse и C2SP (поиск тегов); пробы raw.githubusercontent.com для тех же файлов (HTTP 200).

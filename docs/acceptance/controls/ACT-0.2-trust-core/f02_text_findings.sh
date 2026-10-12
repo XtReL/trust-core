@@ -8,7 +8,9 @@
 #       токена, запрет `git config --global`), которых в CLAUDE.md нет;
 #   F07 ADR 0002 (docs/adr/0002-key-rotation.md:22) называет развилку
 #       «сигналом тревоги», в коде (*.go) обработки развилки нет;
-#   F08 CI использует плавающий go-version: stable (число вхождений).
+#   F08 CI использует плавающий go-version: stable (число вхождений);
+#   F12 класс каталога «слепое доверие заголовкам прокси»: в *.go ядра нет
+#       чтения заголовков HTTP / net/http (число совпадений).
 # Запуск (из корня временной копии, нужна не git-история, а только файлы):
 #   bash acceptance/f02_text_findings.sh
 set -uo pipefail
@@ -43,5 +45,10 @@ expect "F07 (контроль способности) подложенный к�
 
 expect "F08 вхождений go-version: stable в ci.yml" 2 "$(n 'go-version: stable' .github/workflows/ci.yml)"
 expect "F08 go.mod: директива go" "go 1.22" "$(grep -E '^go ' go.mod)"
+
+hdr() { grep -rnE 'X-Forwarded|X-Real-IP|Forwarded-For|Header\.Get|"net/http"' --include='*.go' --exclude-dir=acceptance "$1" | wc -l | tr -d ' '; }
+expect "F12 в *.go ядра нет чтения заголовков прокси/HTTP (число совпадений)" 0 "$(hdr .)"
+mkdir -p "$W/plant/zh" && printf 'package zh\n\nimport "net/http"\n\nfunc ip(r *http.Request) string { return r.Header.Get("X-Forwarded-For") }\n' > "$W/plant/zh/zh.go"
+expect "F12 (контроль способности) подложенное чтение X-Forwarded-For найдено тем же поиском (2 строки)" 2 "$(hdr "$W/plant")"
 
 [ "$fails" -eq 0 ] && echo "F-text: все ожидания выполнены" || { echo "F-text: не выполнено ожиданий: $fails"; exit 1; }
