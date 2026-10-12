@@ -1,0 +1,62 @@
+=== RUN   TestC01_TamperedEntryIsDetected
+--- PASS: TestC01_TamperedEntryIsDetected (0.02s)
+=== RUN   TestC02_CheckpointKeyAndOrigin
+--- PASS: TestC02_CheckpointKeyAndOrigin (0.01s)
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/honest_entry_(baseline)
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/a)_untrusted_signer
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/b)_untrusted_signature,_trusted_keyid_hint
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/c)_wrong_payloadType
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/d)_wrong_statement__type
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/e)_statement_without_subject
+=== RUN   TestC03_EntryMustBeTrustedDSSEWithStatement/f)_not_JSON
+--- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement (0.03s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/honest_entry_(baseline) (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/a)_untrusted_signer (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/b)_untrusted_signature,_trusted_keyid_hint (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/c)_wrong_payloadType (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/d)_wrong_statement__type (0.01s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/e)_statement_without_subject (0.00s)
+    --- PASS: TestC03_EntryMustBeTrustedDSSEWithStatement/f)_not_JSON (0.00s)
+=== RUN   TestC04_KeysComeOnlyFromTheVerifiersManifest
+--- PASS: TestC04_KeysComeOnlyFromTheVerifiersManifest (0.01s)
+=== RUN   TestC05_PreviousCheckpointDetectsRewrite
+--- PASS: TestC05_PreviousCheckpointDetectsRewrite (0.02s)
+=== RUN   TestC06_PlannedWithoutOldSignatureIsAnError
+--- PASS: TestC06_PlannedWithoutOldSignatureIsAnError (0.04s)
+=== RUN   TestC07_UnplannedNeedsExactAcceptance
+--- PASS: TestC07_UnplannedNeedsExactAcceptance (0.02s)
+=== RUN   TestC08_FrozenEpochUsesFreezeCheckpoint
+--- PASS: TestC08_FrozenEpochUsesFreezeCheckpoint (0.02s)
+=== RUN   TestC09_EntriesAfterFreezeAreUnconfirmedOrError
+--- PASS: TestC09_EntriesAfterFreezeAreUnconfirmedOrError (0.04s)
+=== RUN   TestC14a_DSSEPAEExampleFromSpec
+--- PASS: TestC14a_DSSEPAEExampleFromSpec (0.00s)
+=== RUN   TestC14b_OpenSSLVerifiesOurSignatures
+--- PASS: TestC14b_OpenSSLVerifiesOurSignatures (0.04s)
+=== RUN   TestC14c_VerifierKeyFromReferenceImplementation
+    c14_standards_test.go:204: эталон без источника: модуль golang.org/x/mod@v0.22.0 не загружен (запустите c13_interop.sh): open /root/go/pkg/mod/golang.org/x/mod@v0.22.0/sumdb/note/note.go: no such file or directory
+--- FAIL: TestC14c_VerifierKeyFromReferenceImplementation (0.01s)
+=== RUN   TestC14d_CheckpointBodyFormat
+--- PASS: TestC14d_CheckpointBodyFormat (0.00s)
+=== RUN   TestC14e_CTRootsFromReferenceSource
+--- PASS: TestC14e_CTRootsFromReferenceSource (0.00s)
+=== RUN   TestC14f_CTInclusionProofsFromReferenceSource
+--- PASS: TestC14f_CTInclusionProofsFromReferenceSource (0.00s)
+=== RUN   TestC14g_InTotoStringsFromSpecs
+--- PASS: TestC14g_InTotoStringsFromSpecs (0.00s)
+=== RUN   TestC14s_IndependentRFC6962
+--- PASS: TestC14s_IndependentRFC6962 (0.17s)
+=== RUN   TestF01_EmptyPreviousDisablesRollbackCheck
+--- PASS: TestF01_EmptyPreviousDisablesRollbackCheck (0.03s)
+=== RUN   TestF02_OriginOptionalAcceptsClaimedOrigin
+--- PASS: TestF02_OriginOptionalAcceptsClaimedOrigin (0.01s)
+=== RUN   TestF03_StaleLockBlocksAppendForever
+--- PASS: TestF03_StaleLockBlocksAppendForever (0.01s)
+=== RUN   TestF04_RotateDerivesEpochFromOriginSuffix
+--- PASS: TestF04_RotateDerivesEpochFromOriginSuffix (0.01s)
+=== RUN   TestF09_HugeSignedCheckpointSizeCrashesVerifier
+--- PASS: TestF09_HugeSignedCheckpointSizeCrashesVerifier (0.45s)
+FAIL
+FAIL	github.com/XtReL/trust-core/acceptance	0.933s
+FAIL

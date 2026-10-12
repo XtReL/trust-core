@@ -1,0 +1,12 @@
+ok    в копии нет interop/go.sum до tidy (как в репозитории)
+# дата и время (UTC): 2026-10-12T07:57:20Z
+# GOPROXY=off GOSUMDB=sum.golang.org
+$ go mod tidy
+go: downloading golang.org/x/mod v0.22.0
+go: github.com/XtReL/trust-core/interop tested by
+	github.com/XtReL/trust-core/interop.test imports
+	golang.org/x/mod/sumdb/note: module lookup disabled by GOPROXY=off
+go: github.com/XtReL/trust-core/interop tested by
+	github.com/XtReL/trust-core/interop.test imports
+	golang.org/x/mod/sumdb/tlog: module lookup disabled by GOPROXY=off
+Н: сеть недоступна для загрузки модулей Go

@@ -1,0 +1,42 @@
+# источник: origin/acceptance/act-v0 @ 364720013cdb659e60e737e72f3753fdf02585cf, файлы извлечены через git show
+# sha256 MANIFEST.sha256 из той же ветки: a846e918039c37b79e4f6595d133c1c66c5c787e955adf9290e42251de8b5d2d (строк: 66)
+# строк манифеста для controls/ACT-0.2-trust-core/: 24; файлов в каталоге ветки: 24
+$ sha256sum -c (строки манифеста ./controls/ACT-0.2-trust-core/*)
+./controls/ACT-0.2-trust-core/README.md: OK
+./controls/ACT-0.2-trust-core/c01_tamper_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c02_checkpoint_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c03_entries_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c04_manifest_keys_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c05_previous_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c06_planned_downgrade_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c07_unplanned_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c08_frozen_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c09_after_freeze_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c10_key_mode.sh: OK
+./controls/ACT-0.2-trust-core/c11_gitignore.sh: OK
+./controls/ACT-0.2-trust-core/c12_backward_compat.sh: OK
+./controls/ACT-0.2-trust-core/c13_interop.sh: OK
+./controls/ACT-0.2-trust-core/c14_standards_test.go.txt: OK
+./controls/ACT-0.2-trust-core/c15_exit_codes.sh: OK
+./controls/ACT-0.2-trust-core/e01_environment.sh: OK
+./controls/ACT-0.2-trust-core/f01_findings_test.go.txt: OK
+./controls/ACT-0.2-trust-core/f02_text_findings.sh: OK
+./controls/ACT-0.2-trust-core/helpers_test.go.txt: OK
+./controls/ACT-0.2-trust-core/mutations.sh: OK
+./controls/ACT-0.2-trust-core/p01_red_runs_repro.sh: OK
+./controls/ACT-0.2-trust-core/run_all.sh: OK
+./controls/ACT-0.2-trust-core/s01_no_deps.sh: OK
+# exit: 0
+# файлы каталога, отсутствующие в манифесте:
+# (нет)
+$ sha256sum -c (строки манифеста ./reference/*, нужны run_all.sh)
+./reference/github.com/C2SP/C2SP@0b976abec7bb/signed-note.md: OK
+./reference/github.com/C2SP/C2SP@0b976abec7bb/tlog-checkpoint.md: OK
+./reference/github.com/in-toto/attestation@v1.1.0/spec/predicates/test-result.md: OK
+./reference/github.com/in-toto/attestation@v1.1.0/spec/v1/envelope.md: OK
+./reference/github.com/in-toto/attestation@v1.1.0/spec/v1/statement.md: OK
+./reference/github.com/secure-systems-lab/dsse@v1.0.0/envelope.md: OK
+./reference/github.com/secure-systems-lab/dsse@v1.0.0/protocol.md: OK
+./reference/github.com/transparency-dev/merkle@v0.0.2/proof/verify_test.go.txt: OK
+./reference/github.com/transparency-dev/merkle@v0.0.2/testonly/constants.go.txt: OK
+# exit: 0
