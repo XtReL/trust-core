@@ -30,6 +30,10 @@ run() { # имя-лога команда...
   if [ -n "${LOGDIR:-}" ]; then "$@" >"$LOGDIR/$name.log" 2>&1; else "$@" 2>&1; fi
   return $?
 }
+# c13 первым: он загружает модуль golang.org/x/mod (если его нет в кэше), из которого c14c читает эталонный vkey
+echo "## bash acceptance/c13_interop.sh"
+if [ -n "${LOGDIR:-}" ]; then bash acceptance/c13_interop.sh >"$LOGDIR/c13_interop.log" 2>&1; src=$?; tail -1 "$LOGDIR/c13_interop.log"; else bash acceptance/c13_interop.sh; src=$?; fi
+[ "$src" -eq 0 ] || { echo "   код выхода c13_interop: $src"; rc=1; }
 echo "## go vet ./acceptance/"; run go-vet go vet ./acceptance/ || rc=1
 echo "## go test ./acceptance/ -count=1 -v"
 if [ -n "${LOGDIR:-}" ]; then
@@ -39,7 +43,7 @@ else
   go test ./acceptance/ -count=1 -v 2>&1 | grep -E '^(--- |PASS|FAIL|ok)'; trc=${PIPESTATUS[0]}
 fi
 [ "$trc" -eq 0 ] || rc=1
-for s in e01_environment c10_key_mode c11_gitignore c12_backward_compat c13_interop c15_exit_codes s01_no_deps f02_text_findings p01_red_runs_repro; do
+for s in e01_environment c10_key_mode c11_gitignore c12_backward_compat c15_exit_codes s01_no_deps f02_text_findings p01_red_runs_repro; do
   echo "## bash acceptance/$s.sh"
   if [ -n "${LOGDIR:-}" ]; then
     bash "acceptance/$s.sh" >"$LOGDIR/$s.log" 2>&1; src=$?

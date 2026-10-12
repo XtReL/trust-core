@@ -20,3 +20,6 @@
 #   raw.githubusercontent.com/secure-systems-lab/dsse/master/protocol.md -> 200; www.rfc-editor.org/rfc/rfc6962.txt -> 000 (нет соединения).
 # 2026-10-12, между 07:19:00Z и 07:19:55Z (точное время не записано): git ls-remote https://github.com/C2SP/C2SP refs/heads/main -> 0b976abec7bbb740a128271481cbb013db8fdf13
 #   (закрепление версии C2SP); git ls-remote --tags для secure-systems-lab/dsse и C2SP (поиск тегов); пробы raw.githubusercontent.com для тех же файлов (HTTP 200).
+# 2026-10-12: копия golang.org/x/mod@v0.22.0/sumdb/note/note.go в репозитории НЕ хранится (в файле — строка с примером приватного ключа из документации Go;
+#   публичный тестовый вектор, но сканеры секретов могут принять его за секрет). Контроль c14 читает файл из кэша модулей (go env GOMODCACHE),
+#   куда он попадает при загрузке модуля (go.sum: h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=); без загруженного модуля c14c падает («эталон без источника»).

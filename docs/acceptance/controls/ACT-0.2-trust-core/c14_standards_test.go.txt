@@ -10,7 +10,7 @@
 //   DSSE v1.0.0      github.com/secure-systems-lab/dsse@v1.0.0/protocol.md
 //   in-toto v1.1.0   github.com/in-toto/attestation@v1.1.0/spec/v1/statement.md, spec/v1/envelope.md, spec/predicates/test-result.md
 //   C2SP @0b976abe  github.com/C2SP/C2SP@0b976abec7bb/signed-note.md, tlog-checkpoint.md
-//   x/mod v0.22.0    golang.org/x/mod@v0.22.0/sumdb/note/note.go.txt (vkey из документации)
+//   x/mod v0.22.0    golang.org/x/mod@v0.22.0/sumdb/note/note.go из КЭША МОДУЛЕЙ (vkey из документации; файл в репозитории не хранится)
 //   merkle v0.0.2    github.com/transparency-dev/merkle@v0.0.2/testonly/constants.go.txt, proof/verify_test.go.txt (векторы CT; суффикс .txt добавлен при сохранении)
 // Внешний инструмент: OpenSSL (проверка подписей).
 //
@@ -51,7 +51,7 @@ const (
 	refTR     = "reference/github.com/in-toto/attestation@v1.1.0/spec/predicates/test-result.md"
 	refNote   = "reference/github.com/C2SP/C2SP@0b976abec7bb/signed-note.md"
 	refCkpt   = "reference/github.com/C2SP/C2SP@0b976abec7bb/tlog-checkpoint.md"
-	refXNote  = "reference/golang.org/x/mod@v0.22.0/sumdb/note/note.go.txt"
+	refXNote  = "golang.org/x/mod@v0.22.0/sumdb/note/note.go" // в кэше модулей (GOMODCACHE), не в reference/
 	refConsts = "reference/github.com/transparency-dev/merkle@v0.0.2/testonly/constants.go.txt"
 	refProofs = "reference/github.com/transparency-dev/merkle@v0.0.2/proof/verify_test.go.txt"
 )
@@ -195,7 +195,15 @@ func TestC14b_OpenSSLVerifiesOurSignatures(t *testing.T) {
 }
 
 func TestC14c_VerifierKeyFromReferenceImplementation(t *testing.T) {
-	vkey := must1(t, `vkey := "(PeterNeumann\+[^"]+)"`, ref(t, refXNote), "vkey in note.go")
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(out)), refXNote))
+	if err != nil {
+		t.Fatalf("эталон без источника: модуль golang.org/x/mod@v0.22.0 не загружен (запустите c13_interop.sh): %v", err)
+	}
+	vkey := must1(t, `vkey := "(PeterNeumann\+[^"]+)"`, string(b), "vkey in note.go")
 	parts := strings.SplitN(vkey, "+", 3)
 	raw, err := base64.StdEncoding.DecodeString(parts[2])
 	if err != nil || len(raw) != 33 || raw[0] != 1 {
