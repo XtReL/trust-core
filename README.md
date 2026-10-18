@@ -4,6 +4,20 @@
 
 Общий слой проверяемых доказательств. Любая вертикаль (Gatekeeper, журнал действий ИИ-агентов, журнал обращений и инцидентов, MRV, телеметрия) передаёт ядру событие, а ядро превращает его в подписанную аттестацию и добавляет в журнал, который **клиент или аудитор проверяет сам**, имея только публичные ключи.
 
+## Project status
+
+Experimental prototype. The pilot assessed commit `f419b0d1693e6d3c06b7effa813239d129f31d6d` under METHOD 0.3.3. The latest documentary revision, REV-4, retains the recommendation **do not accept** because blocking requirement P03 remains unconfirmed. The scope of deletion and rollback scenarios was not fixed unambiguously before testing. This result does not establish a defect in the whole product or assess later commits.
+
+The classification of findings F-05 and F-06 remains unresolved. The agent's review is not a human approval or certification.
+
+## Статус проекта
+
+Экспериментальный прототип. Пилот проверял коммит `f419b0d1693e6d3c06b7effa813239d129f31d6d` по METHOD 0.3.3. Последняя документальная поправка REV-4 сохраняет рекомендацию **«не принимать»** по блокирующему требованию П03 со статусом Н «недостаточно доказательств». Граница сценариев удаления записи и отката к прежнему подлинному чекпоинту не была однозначно закреплена до проверки. Этот итог не доказывает дефект всего продукта и не распространяется автоматически на последующие коммиты.
+
+Классификация находок F-05 и F-06 остаётся открытой. Протокол агента не является утверждением человеком или сертификацией.
+
+Идентификатор последней поправки `ACT-trust-core-pilot-0.3.3-REV-4.md`. SHA256 документа `74c25249e014e84c21733253eb2eff34200fe9b80da0f42096c0809272997ca7`. Эта запись описывает результат ревизии и не изменяет её документы.
+
 ## Что где лежит
 
 | Путь | Что делает |
